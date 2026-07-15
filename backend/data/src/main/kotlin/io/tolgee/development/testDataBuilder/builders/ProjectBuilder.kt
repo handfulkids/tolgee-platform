@@ -27,11 +27,14 @@ import io.tolgee.model.key.Tag
 import io.tolgee.model.key.screenshotReference.KeyScreenshotReference
 import io.tolgee.model.keyBigMeta.KeysDistance
 import io.tolgee.model.mtServiceConfig.MtServiceConfig
+import io.tolgee.model.qa.ProjectQaConfig
 import io.tolgee.model.slackIntegration.SlackConfig
 import io.tolgee.model.task.Task
 import io.tolgee.model.task.TaskKey
 import io.tolgee.model.translation.Label
 import io.tolgee.model.translation.Translation
+import io.tolgee.model.translationMemory.TranslationMemory
+import io.tolgee.model.translationMemory.TranslationMemoryType
 import io.tolgee.model.webhook.WebhookConfig
 import org.springframework.core.io.ClassPathResource
 
@@ -72,6 +75,7 @@ class ProjectBuilder(
     var contentDeliveryConfigs = mutableListOf<ContentDeliveryContentBuilder>()
     var webhookConfigs = mutableListOf<WebhookConfigBuilder>()
     var importSettings: ImportSettings? = null
+    var qaConfig: ProjectQaConfigBuilder? = null
     var slackConfigs = mutableListOf<SlackConfigBuilder>()
     val batchJobs: MutableList<BatchJobBuilder> = mutableListOf()
     val tasks = mutableListOf<TaskBuilder>()
@@ -197,11 +201,11 @@ class ProjectBuilder(
     }
   }
 
-  fun addHindi(): LanguageBuilder {
+  fun addKhmer(): LanguageBuilder {
     return addLanguage {
-      name = "Hindi"
-      originalName = "हिन्दी"
-      tag = "hi"
+      name = "Khmer"
+      originalName = "ខ្មែរ"
+      tag = "km"
     }
   }
 
@@ -244,6 +248,12 @@ class ProjectBuilder(
     data.importSettings = ImportSettings(this.self).apply(ft)
   }
 
+  fun setQaConfig(ft: FT<ProjectQaConfig> = {}): ProjectQaConfigBuilder {
+    val builder = ProjectQaConfigBuilder(this).apply { ft(self) }
+    data.qaConfig = builder
+    return builder
+  }
+
   fun addPrompt(ft: FT<Prompt>) = addOperation(data.prompts, ft)
 
   fun addAiPlaygroundResult(ft: FT<AiPlaygroundResult>) = addOperation(data.aiPlaygroundResults, ft)
@@ -261,5 +271,44 @@ class ProjectBuilder(
     return this.data.translations
       .find { it.self.key == key && it.self.language.tag == languageTag }
       ?.self
+  }
+
+  /**
+   * Declares a PROJECT-type TM for this project on its parent organization. Mirrors what
+   * `ProjectCreationService.createProject` does in production. The TM is added to the
+   * organization's TM list and is persisted alongside any explicitly-declared shared TMs by
+   * the regular TM persistence pass.
+   */
+  fun addProjectTm(ft: FT<TranslationMemory> = {}): TranslationMemoryBuilder {
+    val org =
+      testDataBuilder.data.organizations
+        .firstOrNull { it.self === self.organizationOwner }
+        ?: error("Project's organization owner is not part of the test data builder tree")
+    val tmBuilder =
+      org.addTranslationMemory {
+        name = self.name
+        sourceLanguageTag = self.baseLanguage?.tag ?: ""
+        type = TranslationMemoryType.PROJECT
+        ft(this)
+      }
+    tmBuilder.assignProject(self) { priority = 0 }
+    return tmBuilder
+  }
+
+  /**
+   * Idempotently ensures this project has a PROJECT-type TM declared. Called by
+   * `TestDataService` during persistence so fixtures that don't explicitly add one still
+   * satisfy the production invariant ("every project has a project TM").
+   */
+  internal fun ensureProjectTm() {
+    val alreadyDeclared =
+      testDataBuilder.data.organizations
+        .asSequence()
+        .flatMap { it.data.translationMemories.asSequence() }
+        .any { tm ->
+          tm.self.type == TranslationMemoryType.PROJECT &&
+            tm.data.projectAssignments.any { it.self.project === self }
+        }
+    if (!alreadyDeclared) addProjectTm()
   }
 }

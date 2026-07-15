@@ -20,6 +20,7 @@ interface ProjectRepository : JpaRepository<Project, Long> {
         r.slug as slug, r.avatarHash as avatarHash,
         r.useNamespaces as useNamespaces,
         r.useBranching as useBranching,
+        r.useQaChecks as useQaChecks,
         r.suggestionsMode as suggestionsMode,
         r.translationProtection as translationProtection,
         dn as defaultNamespace, o as organizationOwner,
@@ -41,6 +42,10 @@ interface ProjectRepository : JpaRepository<Project, Long> {
         and (
             :#{#filters.filterNotId} is null
             or r.id not in :#{#filters.filterNotId}
+        )
+        and (
+            :#{#filters.filterBaseLanguageTag} is null
+            or bl.tag = :#{#filters.filterBaseLanguageTag}
         )
     """
   }
@@ -78,6 +83,10 @@ interface ProjectRepository : JpaRepository<Project, Long> {
             :#{#filters.filterNotId} is null
             or r.id not in :#{#filters.filterNotId}
         )
+        and (
+            :#{#filters.filterBaseLanguageTag} is null
+            or bl.tag = :#{#filters.filterBaseLanguageTag}
+        )
     """,
   )
   fun findAllPermitted(
@@ -89,6 +98,17 @@ interface ProjectRepository : JpaRepository<Project, Long> {
   ): Page<ProjectView>
 
   fun findAllByOrganizationOwnerId(organizationOwnerId: Long): List<Project>
+
+  @Query("select p.id from Project p where p.organizationOwner.deletedAt is not null")
+  fun findIdsInDeletedOrganizations(pageable: Pageable): Page<Long>
+
+  fun findAllByOrganizationOwnerIdAndDeletedAtIsNull(organizationOwnerId: Long): List<Project>
+
+  fun findAllByDeletedAtIsNull(): List<Project>
+
+  fun findAllByOrganizationOwnerIdAndUseQaChecksTrueAndDeletedAtIsNull(organizationOwnerId: Long): List<Project>
+
+  fun findAllByUseQaChecksTrueAndDeletedAtIsNull(): List<Project>
 
   fun countAllBySlug(slug: String): Long
 

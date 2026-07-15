@@ -2,7 +2,6 @@ package io.tolgee.api.v2.controllers.organizationController
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.tolgee.config.TestEmailConfiguration
 import io.tolgee.dtos.misc.CreateOrganizationInvitationParams
 import io.tolgee.dtos.request.organization.OrganizationDto
 import io.tolgee.dtos.request.organization.OrganizationInviteUserDto
@@ -14,6 +13,7 @@ import io.tolgee.fixtures.andIsBadRequest
 import io.tolgee.fixtures.andIsOk
 import io.tolgee.fixtures.andPrettyPrint
 import io.tolgee.fixtures.satisfies
+import io.tolgee.fixtures.waitForNotThrowing
 import io.tolgee.model.Organization
 import io.tolgee.model.enums.OrganizationRoleType
 import io.tolgee.testing.AuthorizedControllerTest
@@ -24,11 +24,9 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestEmailConfiguration::class)
 class OrganizationControllerInvitingTest : AuthorizedControllerTest() {
   companion object {
     private const val INVITED_EMAIL = "jon@doe.com"
@@ -172,7 +170,9 @@ class OrganizationControllerInvitingTest : AuthorizedControllerTest() {
     val organization = prepareTestOrganization()
 
     val code = inviteWithUserWithNameAndEmail(organization.id)
-    emailTestUtil.verifyEmailSent()
+    waitForNotThrowing(timeout = 2000, pollTime = 25) {
+      emailTestUtil.verifyEmailSent()
+    }
 
     val messageContent = emailTestUtil.messageContents.single()
     assertThat(messageContent).contains(code)
@@ -186,7 +186,9 @@ class OrganizationControllerInvitingTest : AuthorizedControllerTest() {
     val organization = prepareTestOrganization()
 
     inviteWithUserWithNameAndEmail(organization.id)
-    emailTestUtil.verifyEmailSent()
+    waitForNotThrowing(timeout = 2000, pollTime = 25) {
+      emailTestUtil.verifyEmailSent()
+    }
 
     val messageContent = emailTestUtil.messageContents.single()
     assertThat(messageContent).doesNotContain("<a href='https://evil.local")
@@ -208,6 +210,33 @@ class OrganizationControllerInvitingTest : AuthorizedControllerTest() {
       OrganizationInviteUserDto(
         roleType = OrganizationRoleType.MEMBER,
         email = TEST_USERNAME,
+        name = INVITED_NAME,
+      ),
+    ).andIsBadRequest
+  }
+
+  @Test
+  fun `does not invite when email already member regardless of casing`() {
+    val organization = prepareTestOrganization()
+    performAuthPut(
+      "/v2/organizations/${organization.id}/invite",
+      OrganizationInviteUserDto(
+        roleType = OrganizationRoleType.MEMBER,
+        email = TEST_USERNAME.uppercase(),
+        name = INVITED_NAME,
+      ),
+    ).andIsBadRequest
+  }
+
+  @Test
+  fun `does not invite when email already invited regardless of casing`() {
+    val organization = prepareTestOrganization()
+    performCreateInvitation(organization.id).andIsOk
+    performAuthPut(
+      "/v2/organizations/${organization.id}/invite",
+      OrganizationInviteUserDto(
+        roleType = OrganizationRoleType.MEMBER,
+        email = INVITED_EMAIL.uppercase(),
         name = INVITED_NAME,
       ),
     ).andIsBadRequest

@@ -26,6 +26,7 @@ export type ValuesCreateType = {
   description: string | undefined;
   isPlural: boolean;
   pluralParameter: string;
+  maxCharLimit: number | undefined;
 };
 
 type Props = {
@@ -36,7 +37,7 @@ type Props = {
   autofocus?: boolean;
 };
 
-export const KeyCreateForm: React.FC<Props> = ({
+export const KeyCreateForm: React.FC<React.PropsWithChildren<Props>> = ({
   baseLanguage,
   onSuccess,
   onCancel,
@@ -72,6 +73,7 @@ export const KeyCreateForm: React.FC<Props> = ({
           'application/json': {
             ...values,
             isPlural: Boolean(values.isPlural),
+            maxCharLimit: values.maxCharLimit || undefined,
             branch: selected?.name,
             translations: {
               [baseLanguage]: tolgeeFormatGenerateIcu(
@@ -119,6 +121,7 @@ export const KeyCreateForm: React.FC<Props> = ({
         namespace,
         isPlural: false,
         pluralParameter: 'value',
+        maxCharLimit: undefined,
       }}
       onSubmit={handleSubmit}
       validationSchema={Validation.NEW_KEY_FORM(t)}

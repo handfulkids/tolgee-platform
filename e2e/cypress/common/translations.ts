@@ -176,6 +176,22 @@ export function editTranslation({
   getCellSaveButton().click();
 }
 
+export function openTranslationEditorWithMt(
+  projectId: number,
+  key: string,
+  languageTag: string
+) {
+  selectLangsInLocalstorage(projectId, ['en', languageTag]);
+  visitTranslations(projectId);
+  waitForGlobalLoading(100, 30000);
+  getTranslationCell(key, languageTag).click();
+  cy.gcy('global-editor').should('be.visible');
+}
+
+export function waitForMtResult() {
+  cy.gcy('translation-tools-machine-translation-item').should('be.visible');
+}
+
 export function confirmDiscard() {
   cy.gcy('global-confirmation-confirm').contains('Discard').click();
 }
@@ -188,6 +204,20 @@ export const toggleLang = (lang) => {
     .click();
   dismissMenu();
   // wait for loading to disappear
+  waitForGlobalLoading();
+};
+
+export const selectAllLanguages = () => {
+  cy.gcy('translations-language-select-form-control').click();
+  cy.gcy('translations-language-select-all').click();
+  dismissMenu();
+  waitForGlobalLoading();
+};
+
+export const selectBaseLanguage = () => {
+  cy.gcy('translations-language-select-form-control').click();
+  cy.gcy('translations-language-select-base').click();
+  dismissMenu();
   waitForGlobalLoading();
 };
 

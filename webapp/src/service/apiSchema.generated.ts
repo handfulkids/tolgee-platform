@@ -90,7 +90,7 @@ export interface paths {
   "/v2/api-keys": {
     get: operations["allByUser"];
     /** Creates new API key with provided scopes */
-    post: operations["create_17"];
+    post: operations["create_19"];
   };
   "/v2/api-keys/availableScopes": {
     get: operations["getScopes"];
@@ -104,15 +104,15 @@ export interface paths {
     get: operations["getCurrentPermissions"];
   };
   "/v2/api-keys/{apiKeyId}": {
-    put: operations["update_11"];
-    delete: operations["delete_10"];
+    put: operations["update_13"];
+    delete: operations["delete_12"];
   };
   "/v2/api-keys/{apiKeyId}/regenerate": {
     put: operations["regenerate_1"];
   };
   "/v2/api-keys/{keyId}": {
     /** Returns specific API key info */
-    get: operations["get_24"];
+    get: operations["get_26"];
   };
   "/v2/auth-provider": {
     get: operations["getCurrentAuthProvider"];
@@ -148,7 +148,7 @@ export interface paths {
     post: operations["upload"];
   };
   "/v2/image-upload/{ids}": {
-    delete: operations["delete_17"];
+    delete: operations["delete_19"];
   };
   "/v2/invitations/{code}/accept": {
     get: operations["acceptInvitation"];
@@ -175,10 +175,10 @@ export interface paths {
     post: operations["create_14"];
   };
   "/v2/organizations/{id}": {
-    get: operations["get_15"];
-    put: operations["update_10"];
+    get: operations["get_17"];
+    put: operations["update_12"];
     /** Deletes organization and all its data including projects */
-    delete: operations["delete_9"];
+    delete: operations["delete_11"];
   };
   "/v2/organizations/{id}/avatar": {
     put: operations["uploadAvatar_2"];
@@ -205,19 +205,19 @@ export interface paths {
     get: operations["getAllBaseLanguagesInUse"];
   };
   "/v2/organizations/{organizationId}/glossaries": {
-    get: operations["getAll_12"];
-    post: operations["create_15"];
+    get: operations["getAll_13"];
+    post: operations["create_17"];
   };
   "/v2/organizations/{organizationId}/glossaries-with-stats": {
-    get: operations["getAllWithStats"];
+    get: operations["getAllWithStats_1"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}": {
-    get: operations["get_13"];
-    put: operations["update_8"];
-    delete: operations["delete_7"];
+    get: operations["get_15"];
+    put: operations["update_10"];
+    delete: operations["delete_9"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/assigned-projects": {
-    get: operations["getAssignedProjects"];
+    get: operations["getAssignedProjects_1"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/export": {
     get: operations["export"];
@@ -229,20 +229,20 @@ export interface paths {
     get: operations["getLanguages"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/terms": {
-    get: operations["getAll_13"];
-    post: operations["create_16"];
+    get: operations["getAll_14"];
+    post: operations["create_18"];
     delete: operations["deleteMultiple"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/terms/{termId}": {
-    get: operations["get_14"];
-    put: operations["update_9"];
-    delete: operations["delete_8"];
+    get: operations["get_16"];
+    put: operations["update_11"];
+    delete: operations["delete_10"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/terms/{termId}/translations": {
-    post: operations["update_12"];
+    post: operations["update_14"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/terms/{termId}/translations/{languageTag}": {
-    get: operations["get_23"];
+    get: operations["get_25"];
   };
   "/v2/organizations/{organizationId}/glossaries/{glossaryId}/termsIds": {
     get: operations["getAllIds"];
@@ -258,7 +258,7 @@ export interface paths {
     get: operations["getAllLanguagesInUse"];
   };
   "/v2/organizations/{organizationId}/llm-providers": {
-    get: operations["getAll_11"];
+    get: operations["getAll_12"];
     post: operations["createProvider"];
   };
   "/v2/organizations/{organizationId}/llm-providers/all-available": {
@@ -311,6 +311,59 @@ export interface paths {
     get: operations["findProvider"];
     put: operations["setProvider"];
   };
+  "/v2/organizations/{organizationId}/translation-memories": {
+    get: operations["getAll_11"];
+    post: operations["create_15"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories-with-stats": {
+    get: operations["getAllWithStats"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/entry-counts": {
+    /** Returns the entry count for each requested TM id (stored + virtual). Unknown ids are omitted from the response. Separate from the list endpoint so the list can render without waiting on the per-TM virtual-row aggregation. */
+    get: operations["getEntryCounts"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}": {
+    get: operations["get_13"];
+    put: operations["update_8"];
+    delete: operations["delete_7"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/assigned-projects": {
+    get: operations["getAssignedProjects"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/entries": {
+    /** Pagination is row-level: each STORED bucket (manual entries on a source collapse into one row; each TMX `tuid` is its own row) and each VIRTUAL origin (one row per project key) gets its own page item. The `targetLanguageTag` filter narrows the *cells* of a row to a subset of target languages; rows themselves still appear with empty cells so the user can add a translation. */
+    get: operations["list_3"];
+    post: operations["create_16"];
+    /** For every entry ID in the payload, deletes the entire group that shares the same source text (and key). The request is deduplicated to distinct groups so passing multiple entries from the same row is a no-op past the first one. */
+    delete: operations["deleteMultipleGroups"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/entries/entryIds": {
+    /** Returns one entry ID per stored row matching the optional `search` filter — the same row identities that the paged endpoint exposes, but flattened to a single long list for client-side `Select all` flows. Virtual rows are not included (they have no entry IDs). */
+    get: operations["getAllStoredEntryIds"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/entries/multiple": {
+    /** Atomic counterpart to the per-language POST. All entries land in one transaction, or none do — replaces the UI's previous per-language loop which could leave a partial result if a later language failed. The same target language must not appear twice in the same request. */
+    post: operations["createMultiple"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/entries/{entryId}": {
+    get: operations["get_14"];
+    put: operations["update_9"];
+    delete: operations["delete_8"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/entries/{entryId}/group": {
+    /** Deletes every entry that shares the same source text (and key) as the given entry — i.e. the entire translation-unit group visible as one row in the UI. */
+    delete: operations["deleteGroup"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/export": {
+    get: operations["exportTmx"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/import": {
+    post: operations["importTmx"];
+  };
+  "/v2/organizations/{organizationId}/translation-memories/{translationMemoryId}/write-only-reviewed": {
+    /** Sets `writeOnlyReviewed` on the given TM. Unlike the main update endpoint, this accepts PROJECT-type TMs too, so org maintainers can edit this single setting from the org-level TM list without switching into project settings. */
+    put: operations["setWriteOnlyReviewed"];
+  };
   "/v2/organizations/{organizationId}/usage": {
     get: operations["getUsage"];
   };
@@ -323,7 +376,7 @@ export interface paths {
     put: operations["setUserRole"];
   };
   "/v2/organizations/{slug}": {
-    get: operations["get_22"];
+    get: operations["get_24"];
   };
   "/v2/organizations/{slug}/projects": {
     /** Returns all organization projects the user has access to */
@@ -413,10 +466,10 @@ export interface paths {
     delete: operations["removeAvatar_1"];
   };
   "/v2/projects/{projectId}/batch-jobs": {
-    get: operations["list_3"];
+    get: operations["list_4"];
   };
   "/v2/projects/{projectId}/batch-jobs/{id}": {
-    get: operations["get_20"];
+    get: operations["get_22"];
   };
   "/v2/projects/{projectId}/batch-jobs/{id}/cancel": {
     /** Stops batch operation if possible. */
@@ -468,7 +521,7 @@ export interface paths {
   };
   "/v2/projects/{projectId}/branches/{branchId}": {
     post: operations["rename"];
-    delete: operations["delete_13"];
+    delete: operations["delete_15"];
   };
   "/v2/projects/{projectId}/branches/{branchId}/protected": {
     post: operations["setProtected"];
@@ -636,7 +689,7 @@ export interface paths {
     get: operations["getAll_7"];
     post: operations["create_6"];
     /** Delete one or multiple keys by their IDs in request body. Useful for larger requests esxceeding allowed URL length. */
-    delete: operations["delete_11"];
+    delete: operations["delete_13"];
   };
   "/v2/projects/{projectId}/keys/create": {
     post: operations["create_5"];
@@ -669,10 +722,13 @@ export interface paths {
     get: operations["selectKeys_2"];
   };
   "/v2/projects/{projectId}/keys/trash": {
-    get: operations["list_5"];
+    get: operations["list_8"];
   };
   "/v2/projects/{projectId}/keys/trash/deleters": {
     get: operations["listDeleters"];
+  };
+  "/v2/projects/{projectId}/keys/trash/select-all": {
+    get: operations["selectAll"];
   };
   "/v2/projects/{projectId}/keys/trash/{keyId}": {
     delete: operations["permanentlyDelete"];
@@ -681,7 +737,7 @@ export interface paths {
     put: operations["restore"];
   };
   "/v2/projects/{projectId}/keys/{ids}": {
-    delete: operations["delete_15"];
+    delete: operations["delete_17"];
   };
   "/v2/projects/{projectId}/keys/{id}": {
     get: operations["get_8"];
@@ -821,6 +877,30 @@ export interface paths {
     put: operations["updatePrompt"];
     delete: operations["deletePrompt"];
   };
+  "/v2/projects/{projectId}/qa-settings": {
+    get: operations["getSettings"];
+    put: operations["updateSettings"];
+  };
+  "/v2/projects/{projectId}/qa-settings/check-types": {
+    get: operations["getCheckTypes"];
+  };
+  "/v2/projects/{projectId}/qa-settings/enabled": {
+    put: operations["setQaEnabled"];
+  };
+  "/v2/projects/{projectId}/qa-settings/languages": {
+    get: operations["getAllLanguageSettings"];
+  };
+  "/v2/projects/{projectId}/qa-settings/languages/{languageId}": {
+    get: operations["getLanguageSettings"];
+    put: operations["updateLanguageSettings"];
+    delete: operations["deleteLanguageSettings"];
+  };
+  "/v2/projects/{projectId}/qa-settings/languages/{languageId}/enabled": {
+    put: operations["setLanguageQaEnabled"];
+  };
+  "/v2/projects/{projectId}/qa-settings/languages/{languageId}/resolved": {
+    get: operations["getLanguageSettingsResolved"];
+  };
   "/v2/projects/{projectId}/single-step-import": {
     /** Unlike the /v2/projects/{projectId}/import endpoint, imports the data in single request by provided files and parameters. This is useful for automated importing via API or CLI. */
     post: operations["singleStepFromFiles"];
@@ -856,6 +936,9 @@ export interface paths {
     /** Pre-translate provided keys to provided languages by TM. */
     post: operations["translate"];
   };
+  "/v2/projects/{projectId}/start-batch-job/qa-check": {
+    post: operations["qaCheck"];
+  };
   "/v2/projects/{projectId}/start-batch-job/restore-keys": {
     post: operations["restoreKeys"];
   };
@@ -880,6 +963,9 @@ export interface paths {
   "/v2/projects/{projectId}/stats/daily-activity": {
     get: operations["getProjectDailyActivity"];
   };
+  "/v2/projects/{projectId}/stats/qa-issue-counts": {
+    get: operations["getQaIssueCountsByCheckType"];
+  };
   "/v2/projects/{projectId}/suggest/machine-translations": {
     /** Suggests machine translations from enabled services */
     post: operations["suggestMachineTranslations"];
@@ -896,7 +982,7 @@ export interface paths {
     put: operations["executeComplexTagOperation"];
   };
   "/v2/projects/{projectId}/tags": {
-    get: operations["getAll_14"];
+    get: operations["getAll_15"];
   };
   "/v2/projects/{projectId}/tasks": {
     get: operations["getTasks"];
@@ -955,6 +1041,20 @@ export interface paths {
     /** Transfers project's ownership to organization */
     put: operations["transferProjectToOrganization"];
   };
+  "/v2/projects/{projectId}/translation-memories": {
+    /** Always readable. When the TRANSLATION_MEMORY feature is not enabled for the organization, only the project-type assignment (if any) is returned so the settings page can still show the row that already drives in-project suggestions. */
+    get: operations["list_6"];
+  };
+  "/v2/projects/{projectId}/translation-memories/project-tm-settings": {
+    /** Sets TM-level flags on the project's own PROJECT-type TM. The shared-TM update endpoint rejects PROJECT TMs; this narrow endpoint exists so project admins can toggle the `writeOnlyReviewed` flag without org-level privileges. */
+    put: operations["updateProjectTmSettings"];
+  };
+  "/v2/projects/{projectId}/translation-memories/{translationMemoryId}": {
+    put: operations["updateAssignment"];
+    post: operations["assign"];
+    /** Removes the assignment between the project and the shared translation memory. The shared TM and its entries remain intact for other projects. */
+    delete: operations["unassign"];
+  };
   "/v2/projects/{projectId}/translations": {
     get: operations["getTranslations"];
     /** Sets translations for existing key */
@@ -1001,6 +1101,19 @@ export interface paths {
   "/v2/projects/{projectId}/translations/{translationId}/label/{labelId}": {
     put: operations["assignLabel"];
     delete: operations["unassignLabel"];
+  };
+  "/v2/projects/{projectId}/translations/{translationId}/qa-issues": {
+    get: operations["getIssues"];
+  };
+  "/v2/projects/{projectId}/translations/{translationId}/qa-issues/suppressions": {
+    post: operations["createSuppression"];
+    delete: operations["removeSuppression"];
+  };
+  "/v2/projects/{projectId}/translations/{translationId}/qa-issues/{issueId}/ignore": {
+    put: operations["ignoreIssue"];
+  };
+  "/v2/projects/{projectId}/translations/{translationId}/qa-issues/{issueId}/unignore": {
+    put: operations["unignoreIssue"];
   };
   "/v2/projects/{projectId}/translations/{translationId}/set-outdated-flag/{state}": {
     /** Set's "outdated" flag indicating the base translation was changed without updating current translation. */
@@ -1052,14 +1165,14 @@ export interface paths {
   };
   "/v2/public/configuration-properties": {
     /** Return server configuration properties documentation */
-    get: operations["get_19"];
+    get: operations["get_21"];
   };
   "/v2/public/export-info/formats": {
-    get: operations["get_18"];
+    get: operations["get_20"];
   };
   "/v2/public/initial-data": {
     /** Returns initial data required by the UI to load */
-    get: operations["get_17"];
+    get: operations["get_19"];
   };
   "/v2/public/machine-translation-providers": {
     /** Get machine translation providers */
@@ -1133,7 +1246,7 @@ export interface paths {
     delete: operations["delete"];
   };
   "/v2/user-preferences": {
-    get: operations["get_16"];
+    get: operations["get_18"];
   };
   "/v2/user-preferences/set-language/{languageTag}": {
     put: operations["setLanguage"];
@@ -1220,7 +1333,10 @@ export interface components {
         | "FEATURE_GLOSSARIES_AND_PLAYGROUND"
         | "FEATURE_LABELS"
         | "FEATURE_SUGGESTIONS_AND_LABELS"
-        | "FEATURE_IMPROVED_FIGMA_ANDROID_AND_IOS";
+        | "FEATURE_IMPROVED_FIGMA_ANDROID_AND_IOS"
+        | "FEATURE_BRANCHING"
+        | "FEATURE_TRANSLATION_MEMORY_MANAGEMENT"
+        | "FEATURE_QA_CHECKS_AND_TRANSLATION_MEMORY";
     };
     ApiKeyModel: {
       /** @description Description */
@@ -1355,6 +1471,8 @@ export interface components {
       viewLanguageIds?: number[];
     };
     ApiKeyWithLanguagesModel: {
+      /** @description Whether branching is enabled and active on this project. */
+      branchingEnabled: boolean;
       description: string;
       /** Format: int64 */
       expiresAt?: number;
@@ -1376,6 +1494,22 @@ export interface components {
     };
     ApplyBranchMergeRequest: {
       deleteBranch: boolean;
+    };
+    AssignSharedTranslationMemoryRequest: {
+      /**
+       * Format: int32
+       * @description Per-assignment penalty override (0–100). When null, the TM's default penalty applies.
+       */
+      penalty?: number;
+      /**
+       * Format: int32
+       * @description Priority in suggestion results (lower = higher priority). When null, the assignment is placed after every existing one (max + 1) so it stacks at the bottom of the list.
+       */
+      priority?: number;
+      /** @description Whether this project can read from the TM */
+      readAccess: boolean;
+      /** @description Whether this project writes new translations to the TM */
+      writeAccess: boolean;
     };
     AuthInfoModel: {
       isReadOnly: boolean;
@@ -1493,6 +1627,7 @@ export interface components {
         | "BILLING_TRIAL_EXPIRATION_NOTICE"
         | "ASSIGN_TRANSLATION_LABEL"
         | "UNASSIGN_TRANSLATION_LABEL"
+        | "QA_CHECK"
         | "NO_OP";
       /**
        * Format: int64
@@ -1825,6 +1960,16 @@ export interface components {
         transferOptions?: components["schemas"]["ProjectTransferOptionModel"][];
       };
     };
+    CollectionModelProjectTranslationMemoryAssignmentModel: {
+      _embedded?: {
+        translationMemoryAssignments?: components["schemas"]["ProjectTranslationMemoryAssignmentModel"][];
+      };
+    };
+    CollectionModelQaIssueModel: {
+      _embedded?: {
+        qaIssues?: components["schemas"]["QaIssueModel"][];
+      };
+    };
     CollectionModelQueueItemModel: {
       _embedded?: {
         queueItemModelList?: components["schemas"]["QueueItemModel"][];
@@ -1855,6 +2000,16 @@ export interface components {
         users?: components["schemas"]["SimpleUserAccountModel"][];
       };
     };
+    CollectionModelTmAssignedProjectModel: {
+      _embedded?: {
+        assignedProjects?: components["schemas"]["TmAssignedProjectModel"][];
+      };
+    };
+    CollectionModelTranslationMemoryEntryModel: {
+      _embedded?: {
+        translationMemoryEntries?: components["schemas"]["TranslationMemoryEntryModel"][];
+      };
+    };
     CollectionModelUsedNamespaceModel: {
       _embedded?: {
         namespaces?: components["schemas"]["UsedNamespaceModel"][];
@@ -1874,6 +2029,11 @@ export interface components {
       description?: string;
       /** @description If key is pluralized. If it will be reflected in the editor. If null, value won't be modified. */
       isPlural?: boolean;
+      /**
+       * Format: int32
+       * @description Maximum character limit. Null = don't modify. 0 = remove limit.
+       */
+      maxCharLimit?: number;
       /** @description Name of the key */
       name: string;
       namespace?: string;
@@ -2130,7 +2290,8 @@ export interface components {
         | "RUBY_SPRINTF"
         | "I18NEXT"
         | "ICU"
-        | "PYTHON_PERCENT";
+        | "PYTHON_PERCENT"
+        | "PYTHON_BRACE";
       name: string;
       pruneBeforePublish: boolean;
       publicUrl?: string;
@@ -2256,7 +2417,8 @@ export interface components {
         | "RUBY_SPRINTF"
         | "I18NEXT"
         | "ICU"
-        | "PYTHON_PERCENT";
+        | "PYTHON_PERCENT"
+        | "PYTHON_BRACE";
       name: string;
       /**
        * @description Whether the data in the CDN should be pruned before publishing new data.
@@ -2374,6 +2536,11 @@ export interface components {
       description?: string;
       /** @description If key is pluralized. If it will be reflected in the editor */
       isPlural: boolean;
+      /**
+       * Format: int32
+       * @description Maximum character limit for translations of this key. Null means no limit.
+       */
+      maxCharLimit?: number;
       /** @description Name of the key */
       name: string;
       namespace?: string;
@@ -2394,6 +2561,27 @@ export interface components {
     };
     CreateMultipleTasksRequest: {
       tasks: components["schemas"]["CreateTaskRequest"][];
+    };
+    CreateMultipleTranslationMemoryEntriesRequest: {
+      /**
+       * @description Source text (in the TM's source language)
+       * @example Hello world
+       */
+      sourceText: string;
+      /** @description Target translations to create, one per target language */
+      translations: components["schemas"]["CreateMultipleTranslationMemoryEntriesTranslationRequest"][];
+    };
+    CreateMultipleTranslationMemoryEntriesTranslationRequest: {
+      /**
+       * @description Target language tag according to BCP 47 definition
+       * @example de
+       */
+      targetLanguageTag: string;
+      /**
+       * @description Target translation text
+       * @example Hallo Welt
+       */
+      targetText: string;
     };
     CreatePatDto: {
       /** @description Description of the PAT */
@@ -2498,6 +2686,9 @@ export interface components {
     DeleteMultipleGlossaryTermsRequest: {
       termIds: number[];
     };
+    DeleteMultipleTranslationMemoryEntriesRequest: {
+      entryIds: number[];
+    };
     DocItem: {
       description?: string;
       displayName?: string;
@@ -2522,6 +2713,11 @@ export interface components {
        * @example This key is used on homepage. It's a label of sign up button.
        */
       description?: string;
+      /**
+       * Format: int32
+       * @description Maximum character limit for translations of this key. Null means no limit.
+       */
+      maxCharLimit?: number;
       name: string;
       namespace?: string;
     };
@@ -2545,6 +2741,8 @@ export interface components {
        * @enum {string}
        */
       translationProtection: "NONE" | "PROTECT_REVIEWED";
+      /** @description When true, the request is allowed to unassign shared translation memories whose source language differs from the new base language. Without this flag, such a conflict is rejected with `cannot_change_project_base_language_tm_conflict`. The frontend should only set this after the user explicitly confirms in the conflict dialog. */
+      unassignConflictingTms?: boolean;
       useBranching: boolean;
       useNamespaces: boolean;
     };
@@ -2576,6 +2774,8 @@ export interface components {
         | "GLOSSARY"
         | "TRANSLATION_LABELS"
         | "BRANCHING"
+        | "QA_CHECKS"
+        | "TRANSLATION_MEMORY"
       )[];
       isPayAsYouGo: boolean;
       /** Format: date-time */
@@ -2620,6 +2820,7 @@ export interface components {
         | "can_not_revoke_own_permissions"
         | "data_corrupted"
         | "invitation_code_does_not_exist_or_expired"
+        | "invitation_email_mismatch"
         | "language_tag_exists"
         | "language_name_exists"
         | "language_not_found"
@@ -2640,6 +2841,7 @@ export interface components {
         | "third_party_switch_initiated"
         | "third_party_switch_conflict"
         | "username_already_exists"
+        | "email_domain_not_allowed"
         | "username_or_password_invalid"
         | "user_already_has_permissions"
         | "user_already_has_role"
@@ -2680,6 +2882,9 @@ export interface components {
         | "request_parse_error"
         | "request_validation_error"
         | "filter_by_value_state_not_valid"
+        | "filter_by_value_qa_check_type_not_valid"
+        | "filter_pattern_not_valid"
+        | "filter_pattern_language_not_valid"
         | "import_has_expired"
         | "tag_not_from_project"
         | "translation_text_too_long"
@@ -2748,6 +2953,7 @@ export interface components {
         | "cannot_set_view_languages_without_for_level_based_permissions"
         | "cannot_set_different_translate_and_state_change_languages_for_level_based_permissions"
         | "cannot_disable_your_own_account"
+        | "user_account_disabled"
         | "subscription_not_found"
         | "invoice_does_not_have_usage"
         | "customer_not_found"
@@ -2766,6 +2972,7 @@ export interface components {
         | "plan_has_subscribers"
         | "translation_failed"
         | "batch_job_not_found"
+        | "no_translations_to_recheck"
         | "key_exists_in_namespace"
         | "tag_is_blank"
         | "execution_failed_on_management_error"
@@ -2894,8 +3101,24 @@ export interface components {
         | "glossary_term_not_found"
         | "glossary_term_translation_not_found"
         | "glossary_non_translatable_term_cannot_be_translated"
+        | "translation_memory_name_already_exists"
+        | "translation_memory_not_found"
+        | "translation_memory_project_assignment_not_found"
+        | "cannot_unassign_project_from_own_translation_memory"
+        | "cannot_modify_project_translation_memory"
+        | "translation_memory_already_assigned_to_project"
+        | "translation_memory_duplicate_project_assignment"
+        | "translation_memory_base_language_mismatch"
+        | "cannot_change_tm_base_language_while_assigned"
+        | "cannot_change_project_base_language_tm_conflict"
+        | "project_translation_memory_not_found"
+        | "translation_memory_entry_not_found"
+        | "translation_memory_entry_read_only"
+        | "translation_memory_entry_duplicate_target_language"
+        | "translation_memory_import_empty"
         | "llm_content_filter"
         | "llm_provider_empty_response"
+        | "llm_provider_max_tokens_exceeded"
         | "label_not_found"
         | "label_not_from_project"
         | "label_already_exists"
@@ -2914,6 +3137,7 @@ export interface components {
         | "operation_not_permitted_in_read_only_mode"
         | "file_processing_failed"
         | "multiple_items_in_chunk_failed"
+        | "content_delivery_prune_failed"
         | "branch_not_found"
         | "cannot_delete_default_branch"
         | "cannot_delete_branch_with_children"
@@ -2924,8 +3148,14 @@ export interface components {
         | "branch_merge_revision_not_valid"
         | "branch_merge_conflicts_not_resolved"
         | "branch_merge_already_merged"
-        | "branching_not_enabled_for_project"
-        | "export_key_plural_suffix_collision";
+        | "feature_not_enabled_for_project"
+        | "export_key_plural_suffix_collision"
+        | "translation_exceeds_char_limit"
+        | "url_not_valid"
+        | "qa_checks_not_enabled"
+        | "plan_migration_not_found"
+        | "plan_has_migrations"
+        | "source_and_target_plan_must_be_different";
       params?: unknown[];
     };
     ExistenceEntityDescription: {
@@ -3060,7 +3290,8 @@ export interface components {
         | "RUBY_SPRINTF"
         | "I18NEXT"
         | "ICU"
-        | "PYTHON_PERCENT";
+        | "PYTHON_PERCENT"
+        | "PYTHON_BRACE";
       /**
        * @description Delimiter to structure file content.
        *
@@ -3222,7 +3453,8 @@ export interface components {
         | "KEY_IS_BLANK"
         | "TRANSLATION_DEFINED_IN_ANOTHER_FILE"
         | "INVALID_CUSTOM_VALUES"
-        | "DESCRIPTION_TOO_LONG";
+        | "DESCRIPTION_TOO_LONG"
+        | "TRANSLATION_EXCEEDS_CHAR_LIMIT";
     };
     ImportFileIssueParamModel: {
       /** @enum {string} */
@@ -3263,6 +3495,7 @@ export interface components {
         | "PO_ICU"
         | "PO_RUBY"
         | "PO_PYTHON"
+        | "PO_PYTHON_BRACE"
         | "STRINGS"
         | "STRINGSDICT"
         | "APPLE_XLIFF"
@@ -3393,16 +3626,12 @@ export interface components {
       unresolvedConflicts?: components["schemas"]["SimpleImportConflictResult"][];
     };
     ImportSettingsModel: {
-      /** @description If true, placeholders from other formats will be converted to ICU when possible */
-      convertPlaceholdersToIcu: boolean;
       /** @description If false, only updates keys, skipping the creation of new keys */
       createNewKeys: boolean;
       /** @description If true, key descriptions will be overridden by the import */
       overrideKeyDescriptions: boolean;
     };
     ImportSettingsRequest: {
-      /** @description If true, placeholders from other formats will be converted to ICU when possible */
-      convertPlaceholdersToIcu: boolean;
       /** @description If false, only updates keys, skipping the creation of new keys */
       createNewKeys: boolean;
       /** @description If true, key descriptions will be overridden by the import */
@@ -3466,6 +3695,7 @@ export interface components {
       eeSubscription?: components["schemas"]["InitialDataEeSubscriptionModel"];
       languageTag?: string;
       preferredOrganization?: components["schemas"]["PrivateOrganizationModel"];
+      qaCheckCategories?: components["schemas"]["QaCheckCategoryModel"][];
       serverConfiguration: components["schemas"]["PublicConfigurationDTO"];
       ssoInfo?: components["schemas"]["PublicSsoTenantModel"];
       userInfo?: components["schemas"]["PrivateUserAccountModel"];
@@ -3496,6 +3726,7 @@ export interface components {
         | "BILLING_TRIAL_EXPIRATION_NOTICE"
         | "ASSIGN_TRANSLATION_LABEL"
         | "UNASSIGN_TRANSLATION_LABEL"
+        | "QA_CHECK"
         | "NO_OP";
     };
     JsonNode: unknown;
@@ -3592,6 +3823,11 @@ export interface components {
        * @description Id of key record
        */
       id: number;
+      /**
+       * Format: int32
+       * @description Maximum character limit for translations of this key
+       */
+      maxCharLimit?: number;
       /**
        * @description Name of key
        * @example this_is_super_key
@@ -3700,6 +3936,11 @@ export interface components {
       /** @description If key is pluralized. If it will be reflected in the editor */
       isPlural: boolean;
       /**
+       * Format: int32
+       * @description Maximum character limit for translations of this key
+       */
+      maxCharLimit?: number;
+      /**
        * @description Name of key
        * @example this_is_super_key
        */
@@ -3756,6 +3997,11 @@ export interface components {
        * @example true
        */
       keyIsPlural: boolean;
+      /**
+       * Format: int32
+       * @description Maximum character limit for translations of this key
+       */
+      keyMaxCharLimit?: number;
       /**
        * @description Name of key
        * @example this_is_super_key
@@ -3948,6 +4194,11 @@ export interface components {
        */
       tag: string;
     };
+    LanguageQaConfigModel: {
+      customSettings?: { [key: string]: "WARNING" | "OFF" };
+      enabled: boolean;
+      language: components["schemas"]["LanguageModel"];
+    };
     LanguageRequest: {
       /**
        * @description Language flag emoji as UTF-8 emoji
@@ -3977,6 +4228,10 @@ export interface components {
       languageName?: string;
       languageOriginalName?: string;
       languageTag?: string;
+      /** Format: int64 */
+      qaChecksStaleCount: number;
+      /** Format: int64 */
+      qaIssueCount: number;
       /** Format: int64 */
       reviewedKeyCount: number;
       /** Format: double */
@@ -4030,6 +4285,10 @@ export interface components {
     LlmProviderSimpleModel: {
       name: string;
       source?: string;
+      /** Format: double */
+      tokenPriceInCreditsInput?: number;
+      /** Format: double */
+      tokenPriceInCreditsOutput?: number;
       /** @enum {string} */
       type: "OPENAI" | "OPENAI_AZURE" | "TOLGEE" | "ANTHROPIC" | "GOOGLE_AI";
     };
@@ -4466,6 +4725,12 @@ export interface components {
       };
       page?: components["schemas"]["PageMetadata"];
     };
+    PagedModelSimpleTranslationMemoryModel: {
+      _embedded?: {
+        translationMemories?: components["schemas"]["SimpleTranslationMemoryModel"][];
+      };
+      page?: components["schemas"]["PageMetadata"];
+    };
     PagedModelSimpleUserAccountModel: {
       _embedded?: {
         users?: components["schemas"]["SimpleUserAccountModel"][];
@@ -4505,6 +4770,18 @@ export interface components {
     PagedModelTranslationMemoryItemModel: {
       _embedded?: {
         translationMemoryItems?: components["schemas"]["TranslationMemoryItemModel"][];
+      };
+      page?: components["schemas"]["PageMetadata"];
+    };
+    PagedModelTranslationMemoryRowModel: {
+      _embedded?: {
+        translationMemoryRows?: components["schemas"]["TranslationMemoryRowModel"][];
+      };
+      page?: components["schemas"]["PageMetadata"];
+    };
+    PagedModelTranslationMemoryWithStatsModel: {
+      _embedded?: {
+        translationMemories?: components["schemas"]["TranslationMemoryWithStatsModel"][];
       };
       page?: components["schemas"]["PageMetadata"];
     };
@@ -4849,6 +5126,8 @@ export interface components {
         | "GLOSSARY"
         | "TRANSLATION_LABELS"
         | "BRANCHING"
+        | "QA_CHECKS"
+        | "TRANSLATION_MEMORY"
       )[];
       /** Format: int64 */
       id: number;
@@ -4918,6 +5197,7 @@ export interface components {
         | "SCREENSHOT_ADD"
         | "KEY_TAGS_EDIT"
         | "KEY_NAME_EDIT"
+        | "KEY_CHARACTER_LIMIT_EDIT"
         | "KEY_DELETE"
         | "KEY_SOFT_DELETE"
         | "KEY_RESTORE"
@@ -4973,6 +5253,17 @@ export interface components {
         | "GLOSSARY_TERM_UPDATE"
         | "GLOSSARY_TERM_DELETE"
         | "GLOSSARY_TERM_TRANSLATION_UPDATE"
+        | "TRANSLATION_MEMORY_CREATE"
+        | "TRANSLATION_MEMORY_UPDATE"
+        | "TRANSLATION_MEMORY_DELETE"
+        | "TRANSLATION_MEMORY_ASSIGN_PROJECT"
+        | "TRANSLATION_MEMORY_UNASSIGN_PROJECT"
+        | "TRANSLATION_MEMORY_UPDATE_PROJECT_CONFIG"
+        | "TRANSLATION_MEMORY_ENTRY_CREATE"
+        | "TRANSLATION_MEMORY_ENTRY_UPDATE"
+        | "TRANSLATION_MEMORY_ENTRY_DELETE"
+        | "TRANSLATION_MEMORY_IMPORT"
+        | "TRANSLATION_MEMORY_COPY_FROM_PROJECT"
         | "TRANSLATION_LABELS_EDIT"
         | "TRANSLATION_LABEL_ASSIGN"
         | "TRANSLATION_LABEL_CREATE"
@@ -4991,14 +5282,32 @@ export interface components {
         | "BRANCH_RENAME"
         | "BRANCH_DELETE"
         | "BRANCH_PROTECTION_CHANGE"
-        | "BRANCH_MERGE";
+        | "BRANCH_MERGE"
+        | "QA_ISSUE_IGNORE"
+        | "QA_ISSUE_UNIGNORE";
     };
     ProjectAiPromptCustomizationModel: {
       /**
-       * @description The project description used in the  prompt that helps AI translator to understand the context of your project.
-       * @example We are Dunder Mifflin, a paper company. We sell paper. This is an project of translations for out paper selling app.
+       * @description The project description used in the prompt that helps AI translator to understand the context of your project.
+       * @example We are Dunder Mifflin, a paper company. We sell paper. This is a project of translations for our paper selling app.
        */
       description?: string;
+    };
+    ProjectAssignmentDto: {
+      /**
+       * Format: int32
+       * @description Per-assignment penalty override (0–100). When null, the TM's default penalty applies.
+       */
+      penalty?: number;
+      /**
+       * Format: int64
+       * @description Project ID
+       */
+      projectId: number;
+      /** @description Whether the project can read from this TM */
+      readAccess: boolean;
+      /** @description Whether the project can write to this TM */
+      writeAccess: boolean;
     };
     ProjectInvitationModel: {
       code?: string;
@@ -5097,6 +5406,7 @@ export interface components {
       translationProtection: "NONE" | "PROTECT_REVIEWED";
       useBranching: boolean;
       useNamespaces: boolean;
+      useQaChecks: boolean;
     };
     ProjectStatistics: {
       /** Format: int64 */
@@ -5105,6 +5415,10 @@ export interface components {
       languageCount: number;
       /** Format: int64 */
       projectId: number;
+      /** Format: int64 */
+      qaChecksStaleCount: number;
+      /** Format: int64 */
+      qaIssueCount: number;
       translationStatePercentages: { [key: string]: number };
     };
     ProjectStatsModel: {
@@ -5133,6 +5447,23 @@ export interface components {
       id: number;
       name: string;
       slug: string;
+    };
+    ProjectTranslationMemoryAssignmentModel: {
+      /** Format: int32 */
+      defaultPenalty: number;
+      /** Format: int32 */
+      penalty?: number;
+      /** Format: int32 */
+      priority: number;
+      readAccess: boolean;
+      sourceLanguageTag: string;
+      /** Format: int64 */
+      translationMemoryId: number;
+      translationMemoryName: string;
+      /** @enum {string} */
+      type: "PROJECT" | "SHARED";
+      writeAccess: boolean;
+      writeOnlyReviewed: boolean;
     };
     ProjectWithStatsModel: {
       avatar?: components["schemas"]["Avatar"];
@@ -5242,6 +5573,7 @@ export interface components {
     };
     PublicBillingConfigurationDTO: {
       enabled: boolean;
+      minUsageInvoiceAmount?: number;
     };
     PublicCloudPlanModel: {
       /** Format: date-time */
@@ -5268,6 +5600,8 @@ export interface components {
         | "GLOSSARY"
         | "TRANSLATION_LABELS"
         | "BRANCHING"
+        | "QA_CHECKS"
+        | "TRANSLATION_MEMORY"
       )[];
       free: boolean;
       /** Format: int64 */
@@ -5343,6 +5677,7 @@ export interface components {
       createdBy?: components["schemas"]["SimpleUserAccountModel"];
       /** Format: int64 */
       id: number;
+      inviteeEmail?: string;
       organizationName?: string;
       projectName?: string;
     };
@@ -5447,6 +5782,212 @@ export interface components {
        * @description Currently used credits including credits used over the limit
        */
       usedMtCredits: number;
+    };
+    QaCheckCategoryModel: {
+      /** @enum {string} */
+      category: "TEXT" | "TECHNICAL";
+      checkTypes: (
+        | "EMPTY_TRANSLATION"
+        | "MISSING_PLURAL_CATEGORIES"
+        | "CHARACTER_CASE_MISMATCH"
+        | "REPEATED_WORDS"
+        | "PUNCTUATION_MISMATCH"
+        | "TRIM_CHECK"
+        | "SPACES_MISMATCH"
+        | "UNMATCHED_NEWLINES"
+        | "MISSING_NUMBERS"
+        | "SPECIAL_CHARACTER_MISMATCH"
+        | "BRACKETS_MISMATCH"
+        | "BRACKETS_UNBALANCED"
+        | "SPELLING"
+        | "GRAMMAR"
+        | "KEY_LENGTH_LIMIT"
+        | "DIFFERENT_URLS"
+        | "INCONSISTENT_PLACEHOLDERS"
+        | "INCONSISTENT_HTML"
+        | "HTML_SYNTAX"
+        | "ICU_SYNTAX"
+      )[];
+    };
+    QaCheckIssueIgnoreRequest: {
+      /** @enum {string} */
+      message:
+        | "qa_empty_translation"
+        | "qa_missing_plural_category"
+        | "qa_check_failed"
+        | "qa_spaces_leading_added"
+        | "qa_spaces_leading_removed"
+        | "qa_spaces_trailing_added"
+        | "qa_spaces_trailing_removed"
+        | "qa_spaces_doubled"
+        | "qa_spaces_non_breaking_added"
+        | "qa_spaces_non_breaking_removed"
+        | "qa_punctuation_add"
+        | "qa_punctuation_remove"
+        | "qa_punctuation_replace"
+        | "qa_case_capitalize"
+        | "qa_case_lowercase"
+        | "qa_numbers_missing"
+        | "qa_leading_spaces"
+        | "qa_trailing_spaces"
+        | "qa_leading_newlines"
+        | "qa_trailing_newlines"
+        | "qa_newlines_missing"
+        | "qa_newlines_extra"
+        | "qa_newlines_too_many_sections"
+        | "qa_newlines_too_few_sections"
+        | "qa_brackets_missing"
+        | "qa_brackets_extra"
+        | "qa_brackets_unclosed"
+        | "qa_brackets_unmatched_close"
+        | "qa_special_char_missing"
+        | "qa_special_char_added"
+        | "qa_url_missing"
+        | "qa_url_extra"
+        | "qa_url_replace"
+        | "qa_repeated_word"
+        | "qa_placeholders_missing"
+        | "qa_placeholders_extra"
+        | "qa_placeholders_replace"
+        | "qa_html_tag_missing"
+        | "qa_html_tag_extra"
+        | "qa_html_unclosed_tag"
+        | "qa_html_unopened_tag"
+        | "qa_icu_syntax_error"
+        | "qa_spelling_error"
+        | "qa_grammar_error"
+        | "qa_key_length_limit_exceeded";
+      params?: { [key: string]: string };
+      pluralVariant?: string;
+      /** Format: int32 */
+      positionEnd?: number;
+      /** Format: int32 */
+      positionStart?: number;
+      replacement?: string;
+      /** @enum {string} */
+      type:
+        | "EMPTY_TRANSLATION"
+        | "MISSING_PLURAL_CATEGORIES"
+        | "CHARACTER_CASE_MISMATCH"
+        | "REPEATED_WORDS"
+        | "PUNCTUATION_MISMATCH"
+        | "TRIM_CHECK"
+        | "SPACES_MISMATCH"
+        | "UNMATCHED_NEWLINES"
+        | "MISSING_NUMBERS"
+        | "SPECIAL_CHARACTER_MISMATCH"
+        | "BRACKETS_MISMATCH"
+        | "BRACKETS_UNBALANCED"
+        | "SPELLING"
+        | "GRAMMAR"
+        | "KEY_LENGTH_LIMIT"
+        | "DIFFERENT_URLS"
+        | "INCONSISTENT_PLACEHOLDERS"
+        | "INCONSISTENT_HTML"
+        | "HTML_SYNTAX"
+        | "ICU_SYNTAX";
+    };
+    QaEnabledRequest: {
+      enabled: boolean;
+    };
+    QaIssueModel: {
+      /** Format: int64 */
+      id: number;
+      /** @enum {string} */
+      message:
+        | "qa_empty_translation"
+        | "qa_missing_plural_category"
+        | "qa_check_failed"
+        | "qa_spaces_leading_added"
+        | "qa_spaces_leading_removed"
+        | "qa_spaces_trailing_added"
+        | "qa_spaces_trailing_removed"
+        | "qa_spaces_doubled"
+        | "qa_spaces_non_breaking_added"
+        | "qa_spaces_non_breaking_removed"
+        | "qa_punctuation_add"
+        | "qa_punctuation_remove"
+        | "qa_punctuation_replace"
+        | "qa_case_capitalize"
+        | "qa_case_lowercase"
+        | "qa_numbers_missing"
+        | "qa_leading_spaces"
+        | "qa_trailing_spaces"
+        | "qa_leading_newlines"
+        | "qa_trailing_newlines"
+        | "qa_newlines_missing"
+        | "qa_newlines_extra"
+        | "qa_newlines_too_many_sections"
+        | "qa_newlines_too_few_sections"
+        | "qa_brackets_missing"
+        | "qa_brackets_extra"
+        | "qa_brackets_unclosed"
+        | "qa_brackets_unmatched_close"
+        | "qa_special_char_missing"
+        | "qa_special_char_added"
+        | "qa_url_missing"
+        | "qa_url_extra"
+        | "qa_url_replace"
+        | "qa_repeated_word"
+        | "qa_placeholders_missing"
+        | "qa_placeholders_extra"
+        | "qa_placeholders_replace"
+        | "qa_html_tag_missing"
+        | "qa_html_tag_extra"
+        | "qa_html_unclosed_tag"
+        | "qa_html_unopened_tag"
+        | "qa_icu_syntax_error"
+        | "qa_spelling_error"
+        | "qa_grammar_error"
+        | "qa_key_length_limit_exceeded";
+      params?: { [key: string]: string };
+      pluralVariant?: string;
+      /** Format: int32 */
+      positionEnd?: number;
+      /** Format: int32 */
+      positionStart?: number;
+      replacement?: string;
+      /** @enum {string} */
+      state: "OPEN" | "IGNORED";
+      /** @enum {string} */
+      type:
+        | "EMPTY_TRANSLATION"
+        | "MISSING_PLURAL_CATEGORIES"
+        | "CHARACTER_CASE_MISMATCH"
+        | "REPEATED_WORDS"
+        | "PUNCTUATION_MISMATCH"
+        | "TRIM_CHECK"
+        | "SPACES_MISMATCH"
+        | "UNMATCHED_NEWLINES"
+        | "MISSING_NUMBERS"
+        | "SPECIAL_CHARACTER_MISMATCH"
+        | "BRACKETS_MISMATCH"
+        | "BRACKETS_UNBALANCED"
+        | "SPELLING"
+        | "GRAMMAR"
+        | "KEY_LENGTH_LIMIT"
+        | "DIFFERENT_URLS"
+        | "INCONSISTENT_PLACEHOLDERS"
+        | "INCONSISTENT_HTML"
+        | "HTML_SYNTAX"
+        | "ICU_SYNTAX";
+    };
+    QaLanguageSettingsModel: {
+      settings?: { [key: string]: "WARNING" | "OFF" };
+    };
+    QaLanguageSettingsRequest: {
+      /** @description Map of check types to their severity. Null values mean 'inherit from global settings'. */
+      settings: { [key: string]: "WARNING" | "OFF" };
+    };
+    QaRecheckByKeysRequest: {
+      keyIds: number[];
+      languageIds?: number[];
+    };
+    QaSettingsModel: {
+      settings: { [key: string]: "WARNING" | "OFF" };
+    };
+    QaSettingsRequest: {
+      settings: { [key: string]: "WARNING" | "OFF" };
     };
     QueueItemModel: {
       /** Format: int64 */
@@ -5631,6 +6172,8 @@ export interface components {
         | "GLOSSARY"
         | "TRANSLATION_LABELS"
         | "BRANCHING"
+        | "QA_CHECKS"
+        | "TRANSLATION_MEMORY"
       )[];
       free: boolean;
       hasYearlyPrice: boolean;
@@ -5662,7 +6205,7 @@ export interface components {
     };
     SetLanguagePromptCustomizationRequest: {
       /**
-       * @description The language description used in the  prompt that helps AI translator to fine tune results for specific language
+       * @description The language description used in the prompt that helps AI translator to fine tune results for specific language
        * @example For arabic language, we are super formal. Always use these translations:
        * Paper -> ورقة
        * Office -> مكتب
@@ -5752,6 +6295,27 @@ export interface components {
        * }
        */
       translations: { [key: string]: string };
+    };
+    SharedTranslationMemoryRequest: {
+      /** @description Project assignments with access settings. */
+      assignedProjects?: components["schemas"]["ProjectAssignmentDto"][];
+      /**
+       * Format: int32
+       * @description Default penalty (0–100) subtracted from match scores for every assignment that does not define its own override. Defaults to 0.
+       */
+      defaultPenalty?: number;
+      /**
+       * @description Translation memory name
+       * @example Marketing TM
+       */
+      name: string;
+      /**
+       * @description Source language tag according to BCP 47 definition
+       * @example en
+       */
+      sourceLanguageTag: string;
+      /** @description When true, only translations whose state is REVIEWED are written to this TM. Translations that drop back to TRANSLATED or UNTRANSLATED also remove the entry. TMX import and direct TM-browser edits bypass this filter. Defaults to false. */
+      writeOnlyReviewed?: boolean;
     };
     SignUpDto: {
       callbackUrl?: string;
@@ -5855,6 +6419,18 @@ export interface components {
       name: string;
       slug?: string;
     };
+    SimpleTranslationMemoryModel: {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      /**
+       * @description Source language tag of the translation memory
+       * @example en
+       */
+      sourceLanguageTag: string;
+      /** @enum {string} */
+      type: "PROJECT" | "SHARED";
+    };
     SimpleUserAccountModel: {
       avatar?: components["schemas"]["Avatar"];
       deleted: boolean;
@@ -5937,6 +6513,8 @@ export interface components {
       };
     };
     SingleStepImportResolvableRequest: {
+      /** @description Branch to import keys into. If not specified, default branch is used. */
+      branch?: string;
       /**
        * @description If `false`, import will apply all `non-failed` overrides and reports `unresolvedConflict`
        * .If `true`, import will fail completely on unresolved conflict and won't apply any changes. Unresolved conflicts are reported in the `params` of the error response
@@ -6034,6 +6612,7 @@ export interface components {
         | "can_not_revoke_own_permissions"
         | "data_corrupted"
         | "invitation_code_does_not_exist_or_expired"
+        | "invitation_email_mismatch"
         | "language_tag_exists"
         | "language_name_exists"
         | "language_not_found"
@@ -6054,6 +6633,7 @@ export interface components {
         | "third_party_switch_initiated"
         | "third_party_switch_conflict"
         | "username_already_exists"
+        | "email_domain_not_allowed"
         | "username_or_password_invalid"
         | "user_already_has_permissions"
         | "user_already_has_role"
@@ -6094,6 +6674,9 @@ export interface components {
         | "request_parse_error"
         | "request_validation_error"
         | "filter_by_value_state_not_valid"
+        | "filter_by_value_qa_check_type_not_valid"
+        | "filter_pattern_not_valid"
+        | "filter_pattern_language_not_valid"
         | "import_has_expired"
         | "tag_not_from_project"
         | "translation_text_too_long"
@@ -6162,6 +6745,7 @@ export interface components {
         | "cannot_set_view_languages_without_for_level_based_permissions"
         | "cannot_set_different_translate_and_state_change_languages_for_level_based_permissions"
         | "cannot_disable_your_own_account"
+        | "user_account_disabled"
         | "subscription_not_found"
         | "invoice_does_not_have_usage"
         | "customer_not_found"
@@ -6180,6 +6764,7 @@ export interface components {
         | "plan_has_subscribers"
         | "translation_failed"
         | "batch_job_not_found"
+        | "no_translations_to_recheck"
         | "key_exists_in_namespace"
         | "tag_is_blank"
         | "execution_failed_on_management_error"
@@ -6308,8 +6893,24 @@ export interface components {
         | "glossary_term_not_found"
         | "glossary_term_translation_not_found"
         | "glossary_non_translatable_term_cannot_be_translated"
+        | "translation_memory_name_already_exists"
+        | "translation_memory_not_found"
+        | "translation_memory_project_assignment_not_found"
+        | "cannot_unassign_project_from_own_translation_memory"
+        | "cannot_modify_project_translation_memory"
+        | "translation_memory_already_assigned_to_project"
+        | "translation_memory_duplicate_project_assignment"
+        | "translation_memory_base_language_mismatch"
+        | "cannot_change_tm_base_language_while_assigned"
+        | "cannot_change_project_base_language_tm_conflict"
+        | "project_translation_memory_not_found"
+        | "translation_memory_entry_not_found"
+        | "translation_memory_entry_read_only"
+        | "translation_memory_entry_duplicate_target_language"
+        | "translation_memory_import_empty"
         | "llm_content_filter"
         | "llm_provider_empty_response"
+        | "llm_provider_max_tokens_exceeded"
         | "label_not_found"
         | "label_not_from_project"
         | "label_already_exists"
@@ -6328,6 +6929,7 @@ export interface components {
         | "operation_not_permitted_in_read_only_mode"
         | "file_processing_failed"
         | "multiple_items_in_chunk_failed"
+        | "content_delivery_prune_failed"
         | "branch_not_found"
         | "cannot_delete_default_branch"
         | "cannot_delete_branch_with_children"
@@ -6338,8 +6940,14 @@ export interface components {
         | "branch_merge_revision_not_valid"
         | "branch_merge_conflicts_not_resolved"
         | "branch_merge_already_merged"
-        | "branching_not_enabled_for_project"
-        | "export_key_plural_suffix_collision";
+        | "feature_not_enabled_for_project"
+        | "export_key_plural_suffix_collision"
+        | "translation_exceeds_char_limit"
+        | "url_not_valid"
+        | "qa_checks_not_enabled"
+        | "plan_migration_not_found"
+        | "plan_has_migrations"
+        | "source_and_target_plan_must_be_different";
       params?: unknown[];
       success: boolean;
     };
@@ -6489,6 +7097,25 @@ export interface components {
       type: "TRANSLATE" | "REVIEW";
     };
     TextNode: unknown;
+    TmAssignedProjectModel: {
+      /** Format: int32 */
+      penalty?: number;
+      /** Format: int32 */
+      priority: number;
+      /** Format: int64 */
+      projectId: number;
+      projectName: string;
+      readAccess: boolean;
+      writeAccess: boolean;
+    };
+    TmxImportResult: {
+      /** Format: int32 */
+      created: number;
+      /** Format: int32 */
+      skipped: number;
+      /** Format: int32 */
+      updated: number;
+    };
     TranslationAgencySimpleModel: {
       avatar?: components["schemas"]["Avatar"];
       /** Format: int64 */
@@ -6563,12 +7190,159 @@ export interface components {
       /** Format: int64 */
       languageId: number;
     };
+    TranslationMemoryEntryCountsModel: {
+      /** @description Entry counts keyed by translation memory id. TM ids not visible to the caller are omitted from the response. */
+      counts: { [key: string]: number };
+    };
+    TranslationMemoryEntryModel: {
+      /**
+       * Format: int64
+       * @description Creation timestamp
+       */
+      createdAt: number;
+      /** Format: int64 */
+      id: number;
+      /**
+       * @description Source text in the TM's source language
+       * @example Hello world
+       */
+      sourceText: string;
+      /**
+       * @description Target language tag (BCP 47)
+       * @example de
+       */
+      targetLanguageTag: string;
+      /**
+       * @description Translated target text
+       * @example Hallo Welt
+       */
+      targetText: string;
+      /**
+       * Format: int64
+       * @description Last update timestamp
+       */
+      updatedAt: number;
+    };
+    TranslationMemoryEntryRequest: {
+      /**
+       * @description Source text (in the TM's source language)
+       * @example Hello world
+       */
+      sourceText: string;
+      /**
+       * @description Target language tag according to BCP 47 definition
+       * @example de
+       */
+      targetLanguageTag: string;
+      /**
+       * @description Target translation text
+       * @example Hallo Welt
+       */
+      targetText: string;
+    };
     TranslationMemoryItemModel: {
       baseText: string;
       keyName: string;
       /** Format: float */
+      rawSimilarity: number;
+      /** Format: float */
       similarity: number;
       targetText: string;
+      translationMemoryName?: string;
+      /** Format: date-time */
+      updatedAt?: string;
+    };
+    TranslationMemoryModel: {
+      /**
+       * Format: int32
+       * @description Default penalty (0–100) subtracted from match scores for every assignment that does not define its own override.
+       */
+      defaultPenalty: number;
+      /** Format: int64 */
+      id: number;
+      name: string;
+      organizationOwner: components["schemas"]["SimpleOrganizationModel"];
+      /**
+       * @description Source language tag of the translation memory
+       * @example en
+       */
+      sourceLanguageTag: string;
+      /** @enum {string} */
+      type: "PROJECT" | "SHARED";
+      /** @description When true, only translations in REVIEWED state contribute to this TM. */
+      writeOnlyReviewed: boolean;
+    };
+    TranslationMemoryRowCellModel: {
+      /**
+       * Format: int64
+       * @description Id of the underlying TM entry when the cell is editable. Absent for read-only cells mirrored from project translations.
+       * @example 12345
+       */
+      entryId?: number;
+      /**
+       * @description Target language tag (BCP 47)
+       * @example de
+       */
+      targetLanguageTag: string;
+      /**
+       * @description Translated target text
+       * @example Hallo Welt
+       */
+      targetText: string;
+    };
+    TranslationMemoryRowModel: {
+      /** @description Cells of this row, already filtered by the requested languages */
+      cells: components["schemas"]["TranslationMemoryRowCellModel"][];
+      /**
+       * @description Whether the row can be edited (manual TM entries) or is read-only (mirrored from a project key — change it in the project).
+       * @example true
+       */
+      editable: boolean;
+      /**
+       * @description Originating project key name when the row mirrors a project key
+       * @example greeting.hello
+       */
+      keyName?: string;
+      /**
+       * Format: int64
+       * @description Originating project id when the row mirrors a project key
+       * @example 42
+       */
+      projectId?: number;
+      /**
+       * @description Originating project name when the row mirrors a project key
+       * @example My project
+       */
+      projectName?: string;
+      /**
+       * @description Source text in the TM's source language
+       * @example Hello world
+       */
+      sourceText: string;
+    };
+    TranslationMemoryWithStatsModel: {
+      /** @description Names of all assigned projects (size = total assignment count) */
+      assignedProjectNames: string[];
+      /**
+       * Format: int32
+       * @description Default penalty (0–100) subtracted from match scores unless an assignment overrides it.
+       */
+      defaultPenalty: number;
+      /** Format: int64 */
+      id: number;
+      name: string;
+      /**
+       * @description Source language tag
+       * @example en
+       */
+      sourceLanguageTag: string;
+      /**
+       * @description PROJECT or SHARED
+       * @example SHARED
+       */
+      type: string;
+      /** @description When true, only REVIEWED translations contribute to this TM. */
+      writeOnlyReviewed: boolean;
     };
     TranslationModel: {
       /** @description Was translated using Translation Memory or Machine translation service? */
@@ -6652,6 +7426,15 @@ export interface components {
       mtProvider?: "GOOGLE" | "AWS" | "DEEPL" | "AZURE" | "BAIDU" | "PROMPT";
       /** @description Whether base language translation was changed after this translation was updated */
       outdated: boolean;
+      /** @description Whether QA checks are stale and need re-running */
+      qaChecksStale: boolean;
+      /**
+       * Format: int64
+       * @description Number of open QA issues
+       */
+      qaIssueCount: number;
+      /** @description Detailed QA issues for inline highlighting (only when includeQaIssues=true) */
+      qaIssues?: components["schemas"]["QaIssueModel"][];
       /**
        * @description State of translation
        * @enum {string}
@@ -6766,6 +7549,26 @@ export interface components {
       /** @description New description of the PAT */
       description: string;
     };
+    UpdateProjectTmSettingsRequest: {
+      /** @description When true, only translations whose state is REVIEWED are written to this project's own TM. Translations that drop back to TRANSLATED or UNTRANSLATED also remove the entry. TMX import and direct TM-browser edits bypass this filter. */
+      writeOnlyReviewed: boolean;
+    };
+    UpdateProjectTranslationMemoryAssignmentRequest: {
+      /**
+       * Format: int32
+       * @description Per-assignment penalty override (0–100). When null, the TM's default penalty applies.
+       */
+      penalty?: number;
+      /**
+       * Format: int32
+       * @description Priority in suggestion results (lower = higher priority). Omit to leave the current priority unchanged.
+       */
+      priority?: number;
+      /** @description Whether this project can read from the TM */
+      readAccess: boolean;
+      /** @description Whether this project writes new translations to the TM */
+      writeAccess: boolean;
+    };
     UpdateTaskKeyRequest: {
       done: boolean;
     };
@@ -6805,6 +7608,8 @@ export interface components {
     UsageModel: {
       /** @description Relevant for invoices only. When there are applied stripe credits, we need to reduce the total price by this amount. */
       appliedStripeCredits?: number;
+      /** @description Relevant for invoices only. Total amount deferred from previous billing periods that is included in this invoice. */
+      carryOverTotal?: number;
       credits?: components["schemas"]["SumUsageItemModel"];
       keys: components["schemas"]["AverageProportionalUsageItemModel"];
       seats: components["schemas"]["AverageProportionalUsageItemModel"];
@@ -6905,6 +7710,10 @@ export interface components {
       data: components["schemas"]["PromptVariableDto"][];
     };
     WebhookConfigModel: {
+      /** @description Whether the webhook was automatically disabled due to persistent failures. */
+      autoDisabled: boolean;
+      /** @description Whether the webhook is enabled. Disabled webhooks are not executed. */
+      enabled: boolean;
       /**
        * Format: int64
        * @description Date of the first failed webhook request. If the last webhook request is successful, this value is set to null.
@@ -6921,6 +7730,7 @@ export interface components {
       webhookSecret: string;
     };
     WebhookConfigRequest: {
+      enabled?: boolean;
       url: string;
     };
     WebhookTestResponse: {
@@ -7852,7 +8662,7 @@ export interface operations {
     };
   };
   /** Creates new API key with provided scopes */
-  create_17: {
+  create_19: {
     responses: {
       /** OK */
       200: {
@@ -8001,7 +8811,7 @@ export interface operations {
       };
     };
   };
-  update_11: {
+  update_13: {
     parameters: {
       path: {
         apiKeyId: number;
@@ -8045,7 +8855,7 @@ export interface operations {
       };
     };
   };
-  delete_10: {
+  delete_12: {
     parameters: {
       path: {
         apiKeyId: number;
@@ -8125,7 +8935,7 @@ export interface operations {
     };
   };
   /** Returns specific API key info */
-  get_24: {
+  get_26: {
     parameters: {
       path: {
         keyId: number;
@@ -8587,7 +9397,7 @@ export interface operations {
       };
     };
   };
-  delete_17: {
+  delete_19: {
     parameters: {
       path: {
         ids: number[];
@@ -8974,7 +9784,7 @@ export interface operations {
       };
     };
   };
-  get_15: {
+  get_17: {
     parameters: {
       path: {
         id: number;
@@ -9013,7 +9823,7 @@ export interface operations {
       };
     };
   };
-  update_10: {
+  update_12: {
     parameters: {
       path: {
         id: number;
@@ -9058,7 +9868,7 @@ export interface operations {
     };
   };
   /** Deletes organization and all its data including projects */
-  delete_9: {
+  delete_11: {
     parameters: {
       path: {
         id: number;
@@ -9274,6 +10084,12 @@ export interface operations {
         /** Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
         sort?: string[];
         search?: string;
+        /** Filter projects by id */
+        filterId?: number[];
+        /** Filter projects without id */
+        filterNotId?: number[];
+        /** Filter projects whose base language tag matches */
+        filterBaseLanguageTag?: string;
       };
     };
     responses: {
@@ -9408,7 +10224,7 @@ export interface operations {
       };
     };
   };
-  getAll_12: {
+  getAll_13: {
     parameters: {
       path: {
         organizationId: number;
@@ -9456,7 +10272,7 @@ export interface operations {
       };
     };
   };
-  create_15: {
+  create_17: {
     parameters: {
       path: {
         organizationId: number;
@@ -9500,7 +10316,7 @@ export interface operations {
       };
     };
   };
-  getAllWithStats: {
+  getAllWithStats_1: {
     parameters: {
       path: {
         organizationId: number;
@@ -9548,7 +10364,7 @@ export interface operations {
       };
     };
   };
-  get_13: {
+  get_15: {
     parameters: {
       path: {
         organizationId: number;
@@ -9588,7 +10404,7 @@ export interface operations {
       };
     };
   };
-  update_8: {
+  update_10: {
     parameters: {
       path: {
         organizationId: number;
@@ -9633,7 +10449,7 @@ export interface operations {
       };
     };
   };
-  delete_7: {
+  delete_9: {
     parameters: {
       path: {
         organizationId: number;
@@ -9669,7 +10485,7 @@ export interface operations {
       };
     };
   };
-  getAssignedProjects: {
+  getAssignedProjects_1: {
     parameters: {
       path: {
         organizationId: number;
@@ -9840,7 +10656,7 @@ export interface operations {
       };
     };
   };
-  getAll_13: {
+  getAll_14: {
     parameters: {
       path: {
         organizationId: number;
@@ -9890,7 +10706,7 @@ export interface operations {
       };
     };
   };
-  create_16: {
+  create_18: {
     parameters: {
       path: {
         organizationId: number;
@@ -9976,7 +10792,7 @@ export interface operations {
       };
     };
   };
-  get_14: {
+  get_16: {
     parameters: {
       path: {
         organizationId: number;
@@ -10017,7 +10833,7 @@ export interface operations {
       };
     };
   };
-  update_9: {
+  update_11: {
     parameters: {
       path: {
         organizationId: number;
@@ -10063,7 +10879,7 @@ export interface operations {
       };
     };
   };
-  delete_8: {
+  delete_10: {
     parameters: {
       path: {
         organizationId: number;
@@ -10100,7 +10916,7 @@ export interface operations {
       };
     };
   };
-  update_12: {
+  update_14: {
     parameters: {
       path: {
         organizationId: number;
@@ -10146,7 +10962,7 @@ export interface operations {
       };
     };
   };
-  get_23: {
+  get_25: {
     parameters: {
       path: {
         organizationId: number;
@@ -10371,7 +11187,7 @@ export interface operations {
       };
     };
   };
-  getAll_11: {
+  getAll_12: {
     parameters: {
       path: {
         organizationId: number;
@@ -11030,6 +11846,874 @@ export interface operations {
       };
     };
   };
+  getAll_11: {
+    parameters: {
+      path: {
+        organizationId: number;
+      };
+      query: {
+        /** Zero-based page index (0..N) */
+        page?: number;
+        /** The size of the page to be returned */
+        size?: number;
+        /** Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+        sort?: string[];
+        search?: string;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PagedModelSimpleTranslationMemoryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  create_15: {
+    parameters: {
+      path: {
+        organizationId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SharedTranslationMemoryRequest"];
+      };
+    };
+  };
+  getAllWithStats: {
+    parameters: {
+      path: {
+        organizationId: number;
+      };
+      query: {
+        /** Zero-based page index (0..N) */
+        page?: number;
+        /** The size of the page to be returned */
+        size?: number;
+        /** Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+        sort?: string[];
+        search?: string;
+        type?: string;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PagedModelTranslationMemoryWithStatsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  /** Returns the entry count for each requested TM id (stored + virtual). Unknown ids are omitted from the response. Separate from the list endpoint so the list can render without waiting on the per-TM virtual-row aggregation. */
+  getEntryCounts: {
+    parameters: {
+      path: {
+        organizationId: number;
+      };
+      query: {
+        ids: number[];
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryEntryCountsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  get_13: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  update_8: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SharedTranslationMemoryRequest"];
+      };
+    };
+  };
+  delete_7: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  getAssignedProjects: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["CollectionModelTmAssignedProjectModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  /** Pagination is row-level: each STORED bucket (manual entries on a source collapse into one row; each TMX `tuid` is its own row) and each VIRTUAL origin (one row per project key) gets its own page item. The `targetLanguageTag` filter narrows the *cells* of a row to a subset of target languages; rows themselves still appear with empty cells so the user can add a translation. */
+  list_3: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+      query: {
+        search?: string;
+        targetLanguageTag?: string;
+        /** Zero-based page index (0..N) */
+        page?: number;
+        /** The size of the page to be returned */
+        size?: number;
+        /** Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+        sort?: string[];
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PagedModelTranslationMemoryRowModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  create_16: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryEntryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TranslationMemoryEntryRequest"];
+      };
+    };
+  };
+  /** For every entry ID in the payload, deletes the entire group that shares the same source text (and key). The request is deduplicated to distinct groups so passing multiple entries from the same row is a no-op past the first one. */
+  deleteMultipleGroups: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeleteMultipleTranslationMemoryEntriesRequest"];
+      };
+    };
+  };
+  /** Returns one entry ID per stored row matching the optional `search` filter — the same row identities that the paged endpoint exposes, but flattened to a single long list for client-side `Select all` flows. Virtual rows are not included (they have no entry IDs). */
+  getAllStoredEntryIds: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+      query: {
+        search?: string;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["CollectionModelLong"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  /** Atomic counterpart to the per-language POST. All entries land in one transaction, or none do — replaces the UI's previous per-language loop which could leave a partial result if a later language failed. The same target language must not appear twice in the same request. */
+  createMultiple: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["CollectionModelTranslationMemoryEntryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateMultipleTranslationMemoryEntriesRequest"];
+      };
+    };
+  };
+  get_14: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+        entryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryEntryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  update_9: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+        entryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TranslationMemoryEntryModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TranslationMemoryEntryRequest"];
+      };
+    };
+  };
+  delete_8: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+        entryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  /** Deletes every entry that shares the same source text (and key) as the given entry — i.e. the entire translation-unit group visible as one row in the UI. */
+  deleteGroup: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+        entryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  exportTmx: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  importTmx: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+      query: {
+        overrideExisting?: boolean;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TmxImportResult"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+  };
+  /** Sets `writeOnlyReviewed` on the given TM. Unlike the main update endpoint, this accepts PROJECT-type TMs too, so org maintainers can edit this single setting from the org-level TM list without switching into project settings. */
+  setWriteOnlyReviewed: {
+    parameters: {
+      path: {
+        organizationId: number;
+        translationMemoryId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProjectTmSettingsRequest"];
+      };
+    };
+  };
   getUsage: {
     parameters: {
       path: {
@@ -11148,7 +12832,7 @@ export interface operations {
       };
     };
   };
-  get_22: {
+  get_24: {
     parameters: {
       path: {
         slug: string;
@@ -11201,6 +12885,12 @@ export interface operations {
         /** Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
         sort?: string[];
         search?: string;
+        /** Filter projects by id */
+        filterId?: number[];
+        /** Filter projects without id */
+        filterNotId?: number[];
+        /** Filter projects whose base language tag matches */
+        filterBaseLanguageTag?: string;
       };
     };
     responses: {
@@ -11611,6 +13301,8 @@ export interface operations {
         filterId?: number[];
         /** Filter projects without id */
         filterNotId?: number[];
+        /** Filter projects whose base language tag matches */
+        filterBaseLanguageTag?: string;
         /** Zero-based page index (0..N) */
         page?: number;
         /** The size of the page to be returned */
@@ -12426,7 +14118,7 @@ export interface operations {
       };
     };
   };
-  list_3: {
+  list_4: {
     parameters: {
       query: {
         /** Zero-based page index (0..N) */
@@ -12473,7 +14165,7 @@ export interface operations {
       };
     };
   };
-  get_20: {
+  get_22: {
     parameters: {
       path: {
         id: number;
@@ -13238,7 +14930,7 @@ export interface operations {
       };
     };
   };
-  delete_13: {
+  delete_15: {
     parameters: {
       path: {
         branchId: number;
@@ -14014,7 +15706,8 @@ export interface operations {
           | "RUBY_SPRINTF"
           | "I18NEXT"
           | "ICU"
-          | "PYTHON_PERCENT";
+          | "PYTHON_PERCENT"
+          | "PYTHON_BRACE";
         /**
          * This is a template that defines the structure of the resulting .zip file content.
          *
@@ -15220,7 +16913,7 @@ export interface operations {
     };
   };
   /** Delete one or multiple keys by their IDs in request body. Useful for larger requests esxceeding allowed URL length. */
-  delete_11: {
+  delete_13: {
     parameters: {
       path: {
         projectId: number;
@@ -15354,6 +17047,9 @@ export interface operations {
    */
   importKeys: {
     parameters: {
+      query: {
+        branch?: string;
+      };
       path: {
         projectId: number;
       };
@@ -15539,6 +17235,10 @@ export interface operations {
         filterHasScreenshot?: boolean;
         /** Selects only keys without screenshots */
         filterHasNoScreenshot?: boolean;
+        /** Selects only keys with a description */
+        filterHasDescription?: boolean;
+        /** Selects only keys without a description */
+        filterHasNoDescription?: boolean;
         /**
          * Selects only keys with provided namespaces.
          *
@@ -15551,6 +17251,113 @@ export interface operations {
          * To filter default namespace, set to empty string.
          */
         filterNoNamespace?: string[];
+        /**
+         * Selects only keys with name matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterKeyPattern?: string[];
+        /**
+         * Selects only keys with name not matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoKeyPattern?: string[];
+        /**
+         * Selects only keys with description matching the provided pattern.
+         * Keys without a description never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterDescriptionPattern?: string[];
+        /**
+         * Selects only keys with description not matching the provided pattern.
+         * Keys without a description always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoDescriptionPattern?: string[];
+        /**
+         * Selects only keys with namespace matching the provided pattern.
+         * Keys in the default namespace never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNamespacePattern?: string[];
+        /**
+         * Selects only keys with namespace not matching the provided pattern.
+         * Keys in the default namespace always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoNamespacePattern?: string[];
+        /**
+         * Selects only keys with a translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match any of the returned languages.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterTranslationPattern?: string[];
+        /**
+         * Selects only keys with no translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match against any of the returned
+         * languages. Keys with no translation in the specified language always match.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoTranslationPattern?: string[];
         /** Selects only keys with provided tag */
         filterTag?: string[];
         /** Selects only keys without provided tag */
@@ -15575,6 +17382,17 @@ export interface operations {
         filterHasCommentsInLang?: string[];
         /** Filter key translations with labels */
         filterLabel?: string[];
+        /** Filter keys with open QA issues in lang */
+        filterHasQaIssuesInLang?: string[];
+        /**
+         * Filter keys with specific QA check type issues in the format: languageTag,checkType.
+         * You can use this parameter multiple times.
+         *
+         * A key matches if any of the selected check types is present in any of the selected languages.
+         */
+        filterQaCheckType?: string[];
+        /** Filter keys whose QA checks are stale (pending recomputation) in lang. When set, only keys with at least one stale translation in any of the provided languages are returned. */
+        filterQaChecksStaleInLang?: string[];
         /** Filter keys with any suggestions in lang */
         filterHasSuggestionsInLang?: string[];
         /** Filter keys with no suggestions in lang */
@@ -15621,7 +17439,7 @@ export interface operations {
       };
     };
   };
-  list_5: {
+  list_8: {
     parameters: {
       query: {
         /** Zero-based page index (0..N) */
@@ -15664,6 +17482,10 @@ export interface operations {
         filterHasScreenshot?: boolean;
         /** Selects only keys without screenshots */
         filterHasNoScreenshot?: boolean;
+        /** Selects only keys with a description */
+        filterHasDescription?: boolean;
+        /** Selects only keys without a description */
+        filterHasNoDescription?: boolean;
         /**
          * Selects only keys with provided namespaces.
          *
@@ -15676,6 +17498,113 @@ export interface operations {
          * To filter default namespace, set to empty string.
          */
         filterNoNamespace?: string[];
+        /**
+         * Selects only keys with name matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterKeyPattern?: string[];
+        /**
+         * Selects only keys with name not matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoKeyPattern?: string[];
+        /**
+         * Selects only keys with description matching the provided pattern.
+         * Keys without a description never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterDescriptionPattern?: string[];
+        /**
+         * Selects only keys with description not matching the provided pattern.
+         * Keys without a description always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoDescriptionPattern?: string[];
+        /**
+         * Selects only keys with namespace matching the provided pattern.
+         * Keys in the default namespace never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNamespacePattern?: string[];
+        /**
+         * Selects only keys with namespace not matching the provided pattern.
+         * Keys in the default namespace always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoNamespacePattern?: string[];
+        /**
+         * Selects only keys with a translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match any of the returned languages.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterTranslationPattern?: string[];
+        /**
+         * Selects only keys with no translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match against any of the returned
+         * languages. Keys with no translation in the specified language always match.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoTranslationPattern?: string[];
         /** Selects only keys with provided tag */
         filterTag?: string[];
         /** Selects only keys without provided tag */
@@ -15700,6 +17629,17 @@ export interface operations {
         filterHasCommentsInLang?: string[];
         /** Filter key translations with labels */
         filterLabel?: string[];
+        /** Filter keys with open QA issues in lang */
+        filterHasQaIssuesInLang?: string[];
+        /**
+         * Filter keys with specific QA check type issues in the format: languageTag,checkType.
+         * You can use this parameter multiple times.
+         *
+         * A key matches if any of the selected check types is present in any of the selected languages.
+         */
+        filterQaCheckType?: string[];
+        /** Filter keys whose QA checks are stale (pending recomputation) in lang. When set, only keys with at least one stale translation in any of the provided languages are returned. */
+        filterQaChecksStaleInLang?: string[];
         /** Filter keys with any suggestions in lang */
         filterHasSuggestionsInLang?: string[];
         /** Filter keys with no suggestions in lang */
@@ -15760,6 +17700,247 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["CollectionModelSimpleUserAccountModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  selectAll: {
+    parameters: {
+      query: {
+        /**
+         * Translation state in the format: languageTag,state. You can use this parameter multiple times.
+         *
+         * When used with multiple states for same language it is applied with logical OR.
+         *
+         * When used with multiple languages, it is applied with logical AND.
+         */
+        filterState?: string[];
+        /**
+         * Languages to be contained in response.
+         *
+         * To add multiple languages, repeat this param (eg. ?languages=en&languages=de)
+         */
+        languages?: string[];
+        /** String to search in key name or translation text */
+        search?: string;
+        /** Selects key with provided names. Use this param multiple times to fetch more keys. */
+        filterKeyName?: string[];
+        /** Selects key with provided ID. Use this param multiple times to fetch more keys. */
+        filterKeyId?: number[];
+        /** Selects only keys for which the translation is missing in any returned language. It only filters for translations included in returned languages. */
+        filterUntranslatedAny?: boolean;
+        /** Selects only keys, where translation is provided in any language */
+        filterTranslatedAny?: boolean;
+        /** Selects only keys where the translation is missing for the specified language. The specified language must be included in the returned languages. Otherwise, this filter doesn't apply. */
+        filterUntranslatedInLang?: string;
+        /** Selects only keys, where translation is provided in specified language */
+        filterTranslatedInLang?: string;
+        /** Selects only keys, where translation was auto translated for specified languages. */
+        filterAutoTranslatedInLang?: string[];
+        /** Selects only keys with screenshots */
+        filterHasScreenshot?: boolean;
+        /** Selects only keys without screenshots */
+        filterHasNoScreenshot?: boolean;
+        /** Selects only keys with a description */
+        filterHasDescription?: boolean;
+        /** Selects only keys without a description */
+        filterHasNoDescription?: boolean;
+        /**
+         * Selects only keys with provided namespaces.
+         *
+         * To filter default namespace, set to empty string.
+         */
+        filterNamespace?: string[];
+        /**
+         * Selects only keys without provided namespaces.
+         *
+         * To filter default namespace, set to empty string.
+         */
+        filterNoNamespace?: string[];
+        /**
+         * Selects only keys with name matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterKeyPattern?: string[];
+        /**
+         * Selects only keys with name not matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoKeyPattern?: string[];
+        /**
+         * Selects only keys with description matching the provided pattern.
+         * Keys without a description never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterDescriptionPattern?: string[];
+        /**
+         * Selects only keys with description not matching the provided pattern.
+         * Keys without a description always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoDescriptionPattern?: string[];
+        /**
+         * Selects only keys with namespace matching the provided pattern.
+         * Keys in the default namespace never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNamespacePattern?: string[];
+        /**
+         * Selects only keys with namespace not matching the provided pattern.
+         * Keys in the default namespace always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoNamespacePattern?: string[];
+        /**
+         * Selects only keys with a translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match any of the returned languages.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterTranslationPattern?: string[];
+        /**
+         * Selects only keys with no translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match against any of the returned
+         * languages. Keys with no translation in the specified language always match.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoTranslationPattern?: string[];
+        /** Selects only keys with provided tag */
+        filterTag?: string[];
+        /** Selects only keys without provided tag */
+        filterNoTag?: string[];
+        /** Selects only keys, where translation in provided langs is in outdated state */
+        filterOutdatedLanguage?: string[];
+        /** Selects only keys, where translation in provided langs is not in outdated state */
+        filterNotOutdatedLanguage?: string[];
+        /** Selects only key affected by activity with specidfied revision ID */
+        filterRevisionId?: number[];
+        /** Select only keys which were not successfully translated by batch job with provided id */
+        filterFailedKeysOfJob?: number;
+        /** Select only keys which are in specified task */
+        filterTaskNumber?: number[];
+        /** Filter task keys which are `not done` */
+        filterTaskKeysNotDone?: boolean;
+        /** Filter task keys which are `done` */
+        filterTaskKeysDone?: boolean;
+        /** Filter keys with unresolved comments in lang */
+        filterHasUnresolvedCommentsInLang?: string[];
+        /** Filter keys with any comments in lang */
+        filterHasCommentsInLang?: string[];
+        /** Filter key translations with labels */
+        filterLabel?: string[];
+        /** Filter keys with open QA issues in lang */
+        filterHasQaIssuesInLang?: string[];
+        /**
+         * Filter keys with specific QA check type issues in the format: languageTag,checkType.
+         * You can use this parameter multiple times.
+         *
+         * A key matches if any of the selected check types is present in any of the selected languages.
+         */
+        filterQaCheckType?: string[];
+        /** Filter keys whose QA checks are stale (pending recomputation) in lang. When set, only keys with at least one stale translation in any of the provided languages are returned. */
+        filterQaChecksStaleInLang?: string[];
+        /** Filter keys with any suggestions in lang */
+        filterHasSuggestionsInLang?: string[];
+        /** Filter keys with no suggestions in lang */
+        filterHasNoSuggestionsInLang?: string[];
+        /** Selects only keys from specified branch */
+        branch?: string;
+        /** Filter trashed keys by who deleted them (user IDs) */
+        filterDeletedByUserId?: number[];
+      };
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["SelectAllResponse"];
         };
       };
       /** Bad Request */
@@ -15864,7 +18045,7 @@ export interface operations {
       };
     };
   };
-  delete_15: {
+  delete_17: {
     parameters: {
       path: {
         ids: number[];
@@ -18039,6 +20220,409 @@ export interface operations {
       };
     };
   };
+  getSettings: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QaSettingsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  updateSettings: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QaSettingsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaSettingsRequest"];
+      };
+    };
+  };
+  getCheckTypes: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QaCheckCategoryModel"][];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  setQaEnabled: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaEnabledRequest"];
+      };
+    };
+  };
+  getAllLanguageSettings: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["LanguageQaConfigModel"][];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  getLanguageSettings: {
+    parameters: {
+      path: {
+        languageId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QaLanguageSettingsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  updateLanguageSettings: {
+    parameters: {
+      path: {
+        languageId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QaLanguageSettingsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaLanguageSettingsRequest"];
+      };
+    };
+  };
+  deleteLanguageSettings: {
+    parameters: {
+      path: {
+        languageId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  setLanguageQaEnabled: {
+    parameters: {
+      path: {
+        languageId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaEnabledRequest"];
+      };
+    };
+  };
+  getLanguageSettingsResolved: {
+    parameters: {
+      path: {
+        languageId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QaSettingsModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
   /** Unlike the /v2/projects/{projectId}/import endpoint, imports the data in single request by provided files and parameters. This is useful for automated importing via API or CLI. */
   singleStepFromFiles: {
     parameters: {
@@ -18487,6 +21071,50 @@ export interface operations {
       };
     };
   };
+  qaCheck: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["BatchJobModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaRecheckByKeysRequest"];
+      };
+    };
+  };
   restoreKeys: {
     parameters: {
       path: {
@@ -18832,6 +21460,49 @@ export interface operations {
       };
     };
   };
+  getQaIssueCountsByCheckType: {
+    parameters: {
+      query: {
+        languageId: number;
+        branch?: string;
+      };
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": { [key: string]: number };
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
   /** Suggests machine translations from enabled services */
   suggestMachineTranslations: {
     parameters: {
@@ -19018,7 +21689,7 @@ export interface operations {
       };
     };
   };
-  getAll_14: {
+  getAll_15: {
     parameters: {
       query: {
         search?: string;
@@ -19929,11 +22600,221 @@ export interface operations {
       };
     };
   };
+  /** Always readable. When the TRANSLATION_MEMORY feature is not enabled for the organization, only the project-type assignment (if any) is returned so the settings page can still show the row that already drives in-project suggestions. */
+  list_6: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["CollectionModelProjectTranslationMemoryAssignmentModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  /** Sets TM-level flags on the project's own PROJECT-type TM. The shared-TM update endpoint rejects PROJECT TMs; this narrow endpoint exists so project admins can toggle the `writeOnlyReviewed` flag without org-level privileges. */
+  updateProjectTmSettings: {
+    parameters: {
+      path: {
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProjectTmSettingsRequest"];
+      };
+    };
+  };
+  updateAssignment: {
+    parameters: {
+      path: {
+        translationMemoryId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ProjectTranslationMemoryAssignmentModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProjectTranslationMemoryAssignmentRequest"];
+      };
+    };
+  };
+  assign: {
+    parameters: {
+      path: {
+        translationMemoryId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ProjectTranslationMemoryAssignmentModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignSharedTranslationMemoryRequest"];
+      };
+    };
+  };
+  /** Removes the assignment between the project and the shared translation memory. The shared TM and its entries remain intact for other projects. */
+  unassign: {
+    parameters: {
+      path: {
+        translationMemoryId: number;
+        projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
   getTranslations: {
     parameters: {
       query: {
         /** Cursor to get next data */
         cursor?: string;
+        /** Include detailed QA issues for inline highlighting */
+        includeQaIssues?: boolean;
         /**
          * Translation state in the format: languageTag,state. You can use this parameter multiple times.
          *
@@ -19968,6 +22849,10 @@ export interface operations {
         filterHasScreenshot?: boolean;
         /** Selects only keys without screenshots */
         filterHasNoScreenshot?: boolean;
+        /** Selects only keys with a description */
+        filterHasDescription?: boolean;
+        /** Selects only keys without a description */
+        filterHasNoDescription?: boolean;
         /**
          * Selects only keys with provided namespaces.
          *
@@ -19980,6 +22865,113 @@ export interface operations {
          * To filter default namespace, set to empty string.
          */
         filterNoNamespace?: string[];
+        /**
+         * Selects only keys with name matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterKeyPattern?: string[];
+        /**
+         * Selects only keys with name not matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoKeyPattern?: string[];
+        /**
+         * Selects only keys with description matching the provided pattern.
+         * Keys without a description never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterDescriptionPattern?: string[];
+        /**
+         * Selects only keys with description not matching the provided pattern.
+         * Keys without a description always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoDescriptionPattern?: string[];
+        /**
+         * Selects only keys with namespace matching the provided pattern.
+         * Keys in the default namespace never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNamespacePattern?: string[];
+        /**
+         * Selects only keys with namespace not matching the provided pattern.
+         * Keys in the default namespace always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoNamespacePattern?: string[];
+        /**
+         * Selects only keys with a translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match any of the returned languages.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterTranslationPattern?: string[];
+        /**
+         * Selects only keys with no translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match against any of the returned
+         * languages. Keys with no translation in the specified language always match.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoTranslationPattern?: string[];
         /** Selects only keys with provided tag */
         filterTag?: string[];
         /** Selects only keys without provided tag */
@@ -20004,6 +22996,17 @@ export interface operations {
         filterHasCommentsInLang?: string[];
         /** Filter key translations with labels */
         filterLabel?: string[];
+        /** Filter keys with open QA issues in lang */
+        filterHasQaIssuesInLang?: string[];
+        /**
+         * Filter keys with specific QA check type issues in the format: languageTag,checkType.
+         * You can use this parameter multiple times.
+         *
+         * A key matches if any of the selected check types is present in any of the selected languages.
+         */
+        filterQaCheckType?: string[];
+        /** Filter keys whose QA checks are stale (pending recomputation) in lang. When set, only keys with at least one stale translation in any of the provided languages are returned. */
+        filterQaChecksStaleInLang?: string[];
         /** Filter keys with any suggestions in lang */
         filterHasSuggestionsInLang?: string[];
         /** Filter keys with no suggestions in lang */
@@ -20273,6 +23276,10 @@ export interface operations {
         filterHasScreenshot?: boolean;
         /** Selects only keys without screenshots */
         filterHasNoScreenshot?: boolean;
+        /** Selects only keys with a description */
+        filterHasDescription?: boolean;
+        /** Selects only keys without a description */
+        filterHasNoDescription?: boolean;
         /**
          * Selects only keys with provided namespaces.
          *
@@ -20285,6 +23292,113 @@ export interface operations {
          * To filter default namespace, set to empty string.
          */
         filterNoNamespace?: string[];
+        /**
+         * Selects only keys with name matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterKeyPattern?: string[];
+        /**
+         * Selects only keys with name not matching the provided pattern.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoKeyPattern?: string[];
+        /**
+         * Selects only keys with description matching the provided pattern.
+         * Keys without a description never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterDescriptionPattern?: string[];
+        /**
+         * Selects only keys with description not matching the provided pattern.
+         * Keys without a description always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoDescriptionPattern?: string[];
+        /**
+         * Selects only keys with namespace matching the provided pattern.
+         * Keys in the default namespace never match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNamespacePattern?: string[];
+        /**
+         * Selects only keys with namespace not matching the provided pattern.
+         * Keys in the default namespace always match.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoNamespacePattern?: string[];
+        /**
+         * Selects only keys with a translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match any of the returned languages.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterTranslationPattern?: string[];
+        /**
+         * Selects only keys with no translation text matching the provided pattern,
+         * in the format: languageTag,pattern. Use `*` as the language tag to match against any of the returned
+         * languages. Keys with no translation in the specified language always match.
+         * The language tag is matched case-insensitively and must be included in the returned languages,
+         * otherwise the request fails with 400.
+         *
+         * Pattern syntax: `*` matches any sequence of characters
+         * (`cart*` = starts with, `*_title` = ends with). A pattern without `*` matches anywhere in the value.
+         * Matching is case-insensitive. `%` and `_` are matched literally.
+         * You can use this parameter multiple times; all patterns must match (logical AND).
+         * Limits: a pattern must not be empty, may be at most 500 characters long
+         * with at most 5 wildcards, and at most 20
+         * patterns may be provided per parameter; violations fail with 400.
+         */
+        filterNoTranslationPattern?: string[];
         /** Selects only keys with provided tag */
         filterTag?: string[];
         /** Selects only keys without provided tag */
@@ -20309,6 +23423,17 @@ export interface operations {
         filterHasCommentsInLang?: string[];
         /** Filter key translations with labels */
         filterLabel?: string[];
+        /** Filter keys with open QA issues in lang */
+        filterHasQaIssuesInLang?: string[];
+        /**
+         * Filter keys with specific QA check type issues in the format: languageTag,checkType.
+         * You can use this parameter multiple times.
+         *
+         * A key matches if any of the selected check types is present in any of the selected languages.
+         */
+        filterQaCheckType?: string[];
+        /** Filter keys whose QA checks are stale (pending recomputation) in lang. When set, only keys with at least one stale translation in any of the provided languages are returned. */
+        filterQaChecksStaleInLang?: string[];
         /** Filter keys with any suggestions in lang */
         filterHasSuggestionsInLang?: string[];
         /** Filter keys with no suggestions in lang */
@@ -20814,6 +23939,202 @@ export interface operations {
         translationId: number;
         labelId: number;
         projectId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  getIssues: {
+    parameters: {
+      path: {
+        projectId: number;
+        translationId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["CollectionModelQaIssueModel"];
+        };
+      };
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  createSuppression: {
+    parameters: {
+      path: {
+        projectId: number;
+        translationId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaCheckIssueIgnoreRequest"];
+      };
+    };
+  };
+  removeSuppression: {
+    parameters: {
+      path: {
+        projectId: number;
+        translationId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QaCheckIssueIgnoreRequest"];
+      };
+    };
+  };
+  ignoreIssue: {
+    parameters: {
+      path: {
+        projectId: number;
+        translationId: number;
+        issueId: number;
+      };
+    };
+    responses: {
+      /** OK */
+      200: unknown;
+      /** Bad Request */
+      400: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Unauthorized */
+      401: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Forbidden */
+      403: {
+        content: {
+          "application/json": string;
+        };
+      };
+      /** Not Found */
+      404: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  unignoreIssue: {
+    parameters: {
+      path: {
+        projectId: number;
+        translationId: number;
+        issueId: number;
       };
     };
     responses: {
@@ -21516,7 +24837,7 @@ export interface operations {
     };
   };
   /** Return server configuration properties documentation */
-  get_19: {
+  get_21: {
     responses: {
       /** OK */
       200: {
@@ -21550,7 +24871,7 @@ export interface operations {
       };
     };
   };
-  get_18: {
+  get_20: {
     responses: {
       /** OK */
       200: {
@@ -21585,7 +24906,7 @@ export interface operations {
     };
   };
   /** Returns initial data required by the UI to load */
-  get_17: {
+  get_19: {
     responses: {
       /** OK */
       200: {
@@ -22414,7 +25735,7 @@ export interface operations {
       };
     };
   };
-  get_16: {
+  get_18: {
     responses: {
       /** OK */
       200: {

@@ -6,7 +6,7 @@ import { useApiMutation, useApiQuery } from 'tg.service/http/useQueryApi';
 import { useProject } from 'tg.hooks/useProject';
 import { LoadingCheckboxWithSkeleton } from 'tg.component/common/form/LoadingCheckboxWithSkeleton';
 import { HelpCircle } from '@untitled-ui/icons-react';
-import { DOCS_LINKS } from '../../../../constants/docLinks';
+import { DOCS_LINKS } from 'tg.constants/docLinks';
 
 type ImportSettingRequest = components['schemas']['ImportSettingsRequest'];
 type ImportSettingModel = components['schemas']['ImportSettingsModel'];
@@ -25,7 +25,9 @@ const StyledPanelBox = styled(Box)`
     theme.palette.tokens.background['paper-3']};
 `;
 
-export const ImportSettingsPanel: FC = (props) => {
+export const ImportSettingsPanel: FC<React.PropsWithChildren<unknown>> = (
+  props
+) => {
   const project = useProject();
   const { t } = useTranslate();
 
@@ -98,24 +100,6 @@ export const ImportSettingsPanel: FC = (props) => {
         color: theme.palette.tokens.text.primary,
       })}
     >
-      {project.icuPlaceholders && (
-        <LoadingCheckboxWithSkeleton
-          loading={loadingItems.has('convertPlaceholdersToIcu')}
-          onChange={(e) => {
-            onChange('convertPlaceholdersToIcu', e.target.checked);
-          }}
-          data-cy={'import-convert-placeholders-to-icu-checkbox'}
-          hint={t('import_convert_placeholders_to_icu_checkbox_label_hint')}
-          label={t('import_convert_placeholders_to_icu_checkbox_label')}
-          checked={state?.convertPlaceholdersToIcu}
-          {...additionalCheckboxProps}
-          customHelpIcon={
-            <StyledLink href={DOCS_LINKS.importingPlaceholders}>
-              <HelpCircle className="icon" />
-            </StyledLink>
-          }
-        />
-      )}
       <LoadingCheckboxWithSkeleton
         loading={loadingItems.has('overrideKeyDescriptions')}
         onChange={(e) => {
@@ -156,9 +140,12 @@ const additionalCheckboxProps = {
 
 const StyledLink = styled('a')`
   color: ${({ theme }) => theme.palette.tokens.icon.primary};
+  display: inline-flex;
+  align-items: center;
 
   .icon {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
+    display: block;
   }
 `;

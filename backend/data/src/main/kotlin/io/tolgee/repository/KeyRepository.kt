@@ -18,6 +18,8 @@ import java.util.Optional
 @Repository
 @Lazy
 interface KeyRepository : JpaRepository<Key, Long> {
+  fun countByProjectId(projectId: Long): Long
+
   @Query(
     value = """
       select count(k.id) from key k
@@ -117,7 +119,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, k.branch.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, k.branch.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns
@@ -265,7 +267,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, b.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, b.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns
@@ -290,7 +292,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns
@@ -399,7 +401,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns

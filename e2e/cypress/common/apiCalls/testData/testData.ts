@@ -31,6 +31,8 @@ export const commentsTestData = generateTestDataObject('translation-comments');
 export const translationSingleTestData =
   generateTestDataObject('translation-single');
 
+export const poMsgctxtTestData = generateTestDataObject('po-msgctxt');
+
 export const importTestData = {
   clean: () => cleanTestData('import'),
   generateBasic: () => internalFetch('e2e-data/import/generate'),
@@ -67,6 +69,8 @@ export const languagePermissionsData = generateTestDataObject(
 export const contentDeliveryTestData =
   generateTestDataObject('content-delivery');
 
+export const webhooksTestData = generateTestDataObject('webhooks');
+
 export const contentDeliveryBranchingTestData = generateTestDataObject(
   'content-delivery-branching'
 );
@@ -92,6 +96,11 @@ export const translationsTestData = {
     internalFetch('e2e-data/translations/generate-for-filters').then(
       (r) => r.body as ProjectDTO
     ),
+
+  generateForDescriptionFilters: () =>
+    internalFetch(
+      'e2e-data/translations/generate-for-description-filters'
+    ).then((r) => r.body as ProjectDTO),
 };
 
 export const translationsDisabled = generateTestDataObject(
@@ -126,6 +135,8 @@ export const formerUserTestData = generateTestDataObject('former-user');
 
 export const namespaces = generateTestDataObject('namespaces');
 
+export const scopedSearch = generateTestDataObject('scoped-search');
+
 export const tasks = generateTestDataObject('task');
 
 export const prompt = generateTestDataObject('prompt');
@@ -138,6 +149,11 @@ export const branchMergeTestData = generateTestDataObject('branch-merge');
 
 export const glossaryTestData = generateTestDataObject('glossary');
 
+export const translationMemoryTestData =
+  generateTestDataObject('translation-memory');
+
+export const tmSuggestionsTestData = generateTestDataObject('tm-suggestions');
+
 export const notificationTestData = generateTestDataObject('notification');
 
 export const authProviderChange = generateTestDataObject(
@@ -148,6 +164,8 @@ export const labelsTestData = generateTestDataObject('label');
 
 export const softDeleteKeysTestData =
   generateTestDataObject('soft-delete-keys');
+
+export const charLimitTestData = generateTestDataObject('char-limit');
 
 export const suggestionsTestData = {
   ...generateTestDataObject('suggestions'),
@@ -239,3 +257,5 @@ export function getInvitationsByProjectIdFromTestData(
 ) {
   return data.invitations.filter((i) => i.projectId === projectId);
 }
+
+export const qaTestData = generateTestDataObject('qa');

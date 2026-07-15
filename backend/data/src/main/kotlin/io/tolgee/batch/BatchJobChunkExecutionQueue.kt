@@ -3,11 +3,11 @@ package io.tolgee.batch
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.tolgee.Metrics
 import io.tolgee.batch.data.BatchJobChunkExecutionDto
+import io.tolgee.batch.data.BatchJobType
 import io.tolgee.batch.data.ExecutionQueueItem
 import io.tolgee.batch.data.QueueEventType
 import io.tolgee.batch.events.JobQueueItemsEvent
 import io.tolgee.component.UsingRedisProvider
-import io.tolgee.configuration.tolgee.BatchProperties
 import io.tolgee.model.batch.BatchJobChunkExecution
 import io.tolgee.model.batch.BatchJobChunkExecutionStatus
 import io.tolgee.model.batch.BatchJobStatus
@@ -25,12 +25,11 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.atomic.AtomicInteger
 
 @Component
 class BatchJobChunkExecutionQueue(
-  private val batchProperties: BatchProperties,
   private val entityManager: EntityManager,
   private val usingRedisProvider: UsingRedisProvider,
   @Lazy
@@ -40,21 +39,49 @@ class BatchJobChunkExecutionQueue(
   InitializingBean {
   companion object {
     /**
-     * It's static
+     * Per-job item queues. Key = jobId.
+     *
+     * All mutations go through ConcurrentHashMap.compute() which provides per-key
+     * atomicity, keeping jobsByType / typeOrder and jobQueues in sync under concurrent access.
+     *
+     * Invariant: jobId is in jobsByType[type] ↔ jobQueues[jobId] is non-null and non-empty.
      */
-    private val queue = ConcurrentLinkedQueue<ExecutionQueueItem>()
+    private val jobQueues = ConcurrentHashMap<Long, ConcurrentLinkedDeque<ExecutionQueueItem>>()
 
     /**
-     * O(1) counter for job characters in queue - avoids O(n) iteration on every chunk
+     * Two-level round-robin order. Outer level rotates job *types*; inner level rotates
+     * jobs within a type. This makes scheduling fair across types regardless of how many
+     * jobs of each type are queued — a flood of one type cannot starve another.
+     *
+     * jobsByType: type -> rotation of jobIds that currently have queued chunks of that type.
+     * typeOrder:  rotation of types that currently have queued jobs.
+     *
+     * Invariants (eventually-consistent, self-correcting on poll like the job level):
+     *   I1: jobId in jobsByType[type]  ↔ jobQueues[jobId] is non-null and non-empty
+     *   I2: type  in typeOrder         ↔ jobsByType[type] has at least one jobId
+     * A type/job that lingers after a concurrent drain is skipped on the next poll.
+     * Both sets are [ConcurrentOrderedSet] so addLast() is idempotent under races.
+     * Empty per-type sets are left in jobsByType (≤ number of BatchJobTypes) rather than
+     * removed, to avoid a remove/computeIfAbsent race; typeOrder membership is what gates
+     * scheduling.
+     */
+    private val jobsByType = ConcurrentHashMap<BatchJobType, ConcurrentOrderedSet<Long>>()
+    private val typeOrder = ConcurrentOrderedSet<BatchJobType>()
+
+    /**
+     * O(1) duplicate detection — replaces the O(n) queue snapshot done on every add.
+     */
+    private val queuedExecutionIds = ConcurrentHashMap.newKeySet<Long>()
+
+    /**
+     * O(1) total item counter.
+     */
+    private val totalSize = AtomicInteger(0)
+
+    /**
+     * O(1) counter for job characters in queue.
      */
     private val jobCharacterCounts = ConcurrentHashMap<JobCharacter, AtomicInteger>()
-
-    /**
-     * Tracks the last job that was served a chunk for round-robin fairness.
-     * This ensures large jobs don't monopolize all worker coroutines.
-     */
-    @Volatile
-    private var lastServedJobId: Long? = null
   }
 
   private fun incrementCharacterCount(character: JobCharacter) {
@@ -65,19 +92,57 @@ class BatchJobChunkExecutionQueue(
     jobCharacterCounts[character]?.decrementAndGet()
   }
 
+  /**
+   * Adds a single item. Returns false if already queued (duplicate).
+   *
+   * Thread-safe: compute() serializes concurrent add/poll for the same jobId,
+   * ensuring jobsByType / typeOrder registration, incrementCharacterCount(), and
+   * totalSize.incrementAndGet() are called exactly once per new item, atomically
+   * with the deque mutation.
+   */
+  private fun addSingleItem(item: ExecutionQueueItem): Boolean {
+    if (!queuedExecutionIds.add(item.chunkExecutionId)) return false
+
+    jobQueues.compute(item.jobId) { jobId, existing ->
+      val deque =
+        existing ?: ConcurrentLinkedDeque<ExecutionQueueItem>().also {
+          // New job for this jobId — register it in its type's rotation (and the type in
+          // typeOrder). Called atomically inside compute — only once per new job.
+          // addLast is idempotent, so a concurrent re-add is a safe no-op.
+          jobsByType.computeIfAbsent(item.jobType) { ConcurrentOrderedSet() }.addLast(jobId)
+          typeOrder.addLast(item.jobType)
+        }
+      deque.addLast(item)
+      incrementCharacterCount(item.jobCharacter)
+      totalSize.incrementAndGet()
+      deque
+    }
+
+    return true
+  }
+
   @EventListener
   fun onJobItemEvent(event: JobQueueItemsEvent) {
     when (event.type) {
-      QueueEventType.ADD -> {
-        this.addItemsToLocalQueue(event.items)
-      }
+      QueueEventType.ADD -> addItemsToLocalQueue(event.items)
 
       QueueEventType.REMOVE -> {
-        // Remove and decrement atomically per item to prevent double-decrement
-        // if poll() removes an item between removeAll and forEach
         event.items.forEach { item ->
-          if (queue.remove(item)) {
-            decrementCharacterCount(item.jobCharacter)
+          jobQueues.compute(item.jobId) { _, deque ->
+            if (deque == null) return@compute null
+            val removed = deque.removeIf { it.chunkExecutionId == item.chunkExecutionId }
+            if (removed) {
+              queuedExecutionIds.remove(item.chunkExecutionId)
+              decrementCharacterCount(item.jobCharacter)
+              totalSize.decrementAndGet()
+            }
+            if (deque.isEmpty()) {
+              // Job drained — drop it from its type rotation. typeOrder self-corrects on poll.
+              jobsByType[item.jobType]?.remove(item.jobId)
+              null
+            } else {
+              deque
+            }
           }
         }
       }
@@ -95,14 +160,14 @@ class BatchJobChunkExecutionQueue(
         .unwrap(Session::class.java)
         .createQuery(
           """
-          select new io.tolgee.batch.data.BatchJobChunkExecutionDto(bjce.id, bk.id, bjce.executeAfter, bk.jobCharacter)
+          select new io.tolgee.batch.data.BatchJobChunkExecutionDto(bjce.id, bk.id, bjce.executeAfter, bk.jobCharacter, bk.type)
           from BatchJobChunkExecution bjce
           join bjce.batchJob bk
           where bjce.status = :executionStatus
-          order by 
+          order by
             case when bk.status = :runningStatus then 0 else 1 end,
-            bjce.createdAt asc, 
-            bjce.executeAfter asc, 
+            bjce.createdAt asc,
+            bjce.executeAfter asc,
             bjce.id asc
           """.trimIndent(),
           BatchJobChunkExecutionDto::class.java,
@@ -110,62 +175,42 @@ class BatchJobChunkExecutionQueue(
         .setParameter("runningStatus", BatchJobStatus.RUNNING)
         .resultList
 
-    if (data.size > 0) {
+    if (data.isNotEmpty()) {
       logger.debug("Attempt to add ${data.size} items to queue ${System.identityHashCode(this)}")
       addExecutionsToLocalQueue(data)
     }
   }
 
   fun addExecutionsToLocalQueue(data: List<BatchJobChunkExecutionDto>) {
-    val ids = queue.map { it.chunkExecutionId }.toSet()
-    var count = 0
-    data.forEach {
-      if (!ids.contains(it.id)) {
-        val item = it.toItem()
-        queue.add(item)
-        incrementCharacterCount(item.jobCharacter)
-        count++
-      }
+    var alreadyQueued = 0
+    data.forEach { dto ->
+      if (!addSingleItem(dto.toItem())) alreadyQueued++
     }
-    metrics.batchJobManagementItemAlreadyQueuedCounter.increment(data.size - count.toDouble())
-    logger.debug("Added $count new items to queue ${System.identityHashCode(this)}")
+    metrics.batchJobManagementItemAlreadyQueuedCounter.increment(alreadyQueued.toDouble())
+    logger.debug("Added ${data.size - alreadyQueued} new items to queue ${System.identityHashCode(this)}")
   }
 
   fun addItemsToLocalQueue(data: List<ExecutionQueueItem>) {
-    // Use Set for O(1) lookup instead of O(n) queue.contains()
-    val existingIds = queue.mapTo(HashSet()) { it.chunkExecutionId }
-    val toAdd = mutableListOf<ExecutionQueueItem>()
     var filteredOutCount = 0
-
-    data.forEach {
-      if (!existingIds.contains(it.chunkExecutionId)) {
-        toAdd.add(it)
-        existingIds.add(it.chunkExecutionId) // Prevent duplicates within the batch
-      } else {
-        filteredOutCount++
-      }
+    data.forEach { item ->
+      if (!addSingleItem(item)) filteredOutCount++
     }
     metrics.batchJobManagementItemAlreadyQueuedCounter.increment(filteredOutCount.toDouble())
     logger.trace {
-      val itemsString = toAdd.joinToString(", ") { it.chunkExecutionId.toString() }
-      "Adding ${toAdd.size} chunks to queue. Filtered out: $filteredOutCount"
+      "Adding ${data.size - filteredOutCount} chunks to queue. Filtered out: $filteredOutCount"
     }
-
-    queue.addAll(toAdd)
-    toAdd.forEach { incrementCharacterCount(it.jobCharacter) }
   }
 
   fun addToQueue(
     execution: BatchJobChunkExecution,
     jobCharacter: JobCharacter,
+    jobType: BatchJobType,
   ) {
-    val item = execution.toItem(jobCharacter)
-    addItemsToQueue(listOf(item))
+    addItemsToQueue(listOf(execution.toItem(jobCharacter, jobType)))
   }
 
   fun addToQueue(executions: List<BatchJobChunkExecution>) {
-    val items = executions.map { it.toItem() }
-    addItemsToQueue(items)
+    addItemsToQueue(executions.map { it.toItem() })
   }
 
   fun addItemsToQueue(items: List<ExecutionQueueItem>) {
@@ -183,125 +228,148 @@ class BatchJobChunkExecutionQueue(
       return
     }
 
-    this.addItemsToLocalQueue(items)
+    addItemsToLocalQueue(items)
   }
 
   fun removeJobExecutions(jobId: Long) {
-    logger.debug("Removing job $jobId from queue, queue size: ${queue.size}")
-    val iterator = queue.iterator()
-    while (iterator.hasNext()) {
-      val item = iterator.next()
-      if (item.jobId == jobId) {
-        iterator.remove()
-        decrementCharacterCount(item.jobCharacter)
+    logger.debug("Removing job $jobId from queue, queue size: ${totalSize.get()}")
+    var removedCount = 0
+    jobQueues.compute(jobId) { _, deque ->
+      if (deque != null) {
+        // All chunks of a job share its type; read it from any queued item.
+        val type = deque.peek()?.jobType
+        deque.forEach { item ->
+          queuedExecutionIds.remove(item.chunkExecutionId)
+          decrementCharacterCount(item.jobCharacter)
+        }
+        removedCount = deque.size
+        totalSize.addAndGet(-removedCount)
+        // Inside compute to prevent a concurrent addSingleItem from re-adding jobId between
+        // the compute returning and the remove call. typeOrder self-corrects on next poll.
+        if (type != null) jobsByType[type]?.remove(jobId)
       }
+      null // remove entry from map
     }
-    logger.debug("Removed job $jobId from queue, queue size: ${queue.size}")
+    logger.debug("Removed job $jobId from queue ($removedCount items), queue size: ${totalSize.get()}")
   }
 
   private fun BatchJobChunkExecution.toItem(
     // Yes. jobCharacter is part of the batchJob entity.
     // However, we don't want to fetch it here, because it would be a waste of resources.
     // So we can provide the jobCharacter here.
+    // Same for jobType: on the retry path batchJob is a detached lazy proxy (the chunk runs
+    // outside a Hibernate session), so accessing batchJob.type would throw
+    // LazyInitializationException — callers that already have the type must pass it in.
     jobCharacter: JobCharacter? = null,
-  ) =
-    ExecutionQueueItem(id, batchJob.id, executeAfter?.time, jobCharacter ?: batchJob.jobCharacter)
+    jobType: BatchJobType? = null,
+  ) = ExecutionQueueItem(
+    id,
+    batchJob.id,
+    executeAfter?.time,
+    jobCharacter ?: batchJob.jobCharacter,
+    jobType = jobType ?: batchJob.type,
+  )
 
   private fun BatchJobChunkExecutionDto.toItem(providedJobCharacter: JobCharacter? = null) =
-    ExecutionQueueItem(id, batchJobId, executeAfter?.time, providedJobCharacter ?: jobCharacter)
+    ExecutionQueueItem(
+      id,
+      batchJobId,
+      executeAfter?.time,
+      providedJobCharacter ?: jobCharacter,
+      jobType = jobType,
+    )
 
-  val size get() = queue.size
+  val size get() = totalSize.get()
 
   fun joinToString(
     separator: String = ", ",
     transform: (item: ExecutionQueueItem) -> String,
-  ) = queue.joinToString(separator, transform = transform)
-
-  fun poll(): ExecutionQueueItem? {
-    val item = queue.poll()
-    item?.let { decrementCharacterCount(it.jobCharacter) }
-    return item
-  }
+  ) = getAllQueueItems().joinToString(separator, transform = transform)
 
   /**
-   * Polls using round-robin across jobs for fair distribution.
-   * Each job gets one chunk processed before any job gets a second chunk.
-   * This prevents large jobs from monopolizing all worker coroutines.
+   * O(1) poll — delegates to pollRoundRobin.
+   */
+  fun poll(): ExecutionQueueItem? = pollRoundRobin()
+
+  /**
+   * O(1) two-level round-robin poll: rotate types, then jobs within the chosen type, then
+   * serve one chunk. Fair across types regardless of per-type job count (see #3428 for the
+   * job level this builds on).
    *
-   * Thread-safety: This method handles concurrent modifications gracefully.
-   * If another thread removes an item between finding and removing it,
-   * we verify the removal succeeded and retry if needed.
+   * Thread-safe: the chunk removal and all counters run inside jobQueues.compute(); the
+   * rotation sets are ConcurrentOrderedSets with idempotent addLast(). A type or job that
+   * drained concurrently is skipped; maxAttempts bounds the skip loop.
    */
   fun pollRoundRobin(): ExecutionQueueItem? {
-    if (queue.isEmpty()) {
-      return null
-    }
+    if (isEmpty()) return null
 
-    // Get distinct job IDs in queue order
-    val jobIds = queue.mapTo(LinkedHashSet()) { it.jobId }.toList()
-    if (jobIds.isEmpty()) {
-      return null
-    }
-
-    // Find next job in rotation
-    val lastJobId = lastServedJobId
-    val startIndex =
-      if (lastJobId == null) {
-        0
-      } else {
-        val idx = jobIds.indexOf(lastJobId)
-        if (idx == -1) 0 else (idx + 1) % jobIds.size
+    // Each iteration removes one type from typeOrder. We may skip types whose bucket drained
+    // concurrently (≤ number of types) and jobs that drained concurrently (≤ number of jobs).
+    val maxAttempts = jobQueues.size + jobsByType.size + 1
+    var attempts = 0
+    while (attempts++ <= maxAttempts) {
+      val type = typeOrder.pollFirst() ?: return null
+      val jobsForType = jobsByType[type]
+      val jobId = jobsForType?.pollFirst()
+      if (jobId == null) {
+        // Type bucket drained concurrently; type already removed from typeOrder. Try next.
+        continue
       }
 
-    // Try each job in round-robin order
-    for (i in jobIds.indices) {
-      val jobIndex = (startIndex + i) % jobIds.size
-      val targetJobId = jobIds[jobIndex]
-
-      // Find first item for this job and try to remove it
-      val item = queue.firstOrNull { it.jobId == targetJobId }
-      if (item != null && queue.remove(item)) {
-        // Successfully removed - update state and return
-        decrementCharacterCount(item.jobCharacter)
-        lastServedJobId = targetJobId
-        return item
+      var item: ExecutionQueueItem? = null
+      jobQueues.compute(jobId) { _, deque ->
+        if (deque.isNullOrEmpty()) return@compute null
+        item = deque.removeFirst()
+        val capturedItem = item!!
+        queuedExecutionIds.remove(capturedItem.chunkExecutionId)
+        decrementCharacterCount(capturedItem.jobCharacter)
+        totalSize.decrementAndGet()
+        if (deque.isNotEmpty()) {
+          jobsForType.addLast(jobId)
+          deque
+        } else {
+          null
+        }
       }
-      // Item was null or already removed by another thread, try next job
-    }
 
-    // Fallback if all targeted items were concurrently removed
-    return poll()
+      if (jobsForType.peekFirst() != null) {
+        typeOrder.addLast(type)
+      }
+
+      if (item != null) return item
+    }
+    return null
   }
 
   fun clear() {
     logger.debug("Clearing queue")
-    queue.clear()
+    jobQueues.clear()
+    jobsByType.clear()
+    typeOrder.clear()
+    queuedExecutionIds.clear()
+    totalSize.set(0)
     jobCharacterCounts.clear()
   }
 
-  fun find(function: (ExecutionQueueItem) -> Boolean): ExecutionQueueItem? {
-    return queue.find(function)
+  fun find(function: (ExecutionQueueItem) -> Boolean): ExecutionQueueItem? = getAllQueueItems().find(function)
+
+  fun peek(): ExecutionQueueItem {
+    val type = typeOrder.peekFirst() ?: throw NoSuchElementException("Queue is empty")
+    val jobId = jobsByType[type]?.peekFirst() ?: throw NoSuchElementException("Queue is empty")
+    return jobQueues[jobId]?.peekFirst() ?: throw NoSuchElementException("Queue is empty")
   }
 
-  fun peek(): ExecutionQueueItem = queue.peek()
+  fun contains(item: ExecutionQueueItem?): Boolean = item != null && queuedExecutionIds.contains(item.chunkExecutionId)
 
-  fun contains(item: ExecutionQueueItem?): Boolean = queue.contains(item)
+  fun isEmpty(): Boolean = totalSize.get() == 0
 
-  fun isEmpty(): Boolean = queue.isEmpty()
-
-  fun getJobCharacterCounts(): Map<JobCharacter, Int> {
-    return jobCharacterCounts.mapValues { it.value.get() }
-  }
+  fun getJobCharacterCounts(): Map<JobCharacter, Int> = jobCharacterCounts.mapValues { it.value.get() }
 
   override fun afterPropertiesSet() {
-    metrics.registerJobQueue(queue)
+    metrics.registerJobQueue { totalSize.get() }
   }
 
-  fun getQueuedJobItems(jobId: Long): List<ExecutionQueueItem> {
-    return queue.filter { it.jobId == jobId }
-  }
+  fun getQueuedJobItems(jobId: Long): List<ExecutionQueueItem> = jobQueues[jobId]?.toList() ?: emptyList()
 
-  fun getAllQueueItems(): List<ExecutionQueueItem> {
-    return queue.toList()
-  }
+  fun getAllQueueItems(): List<ExecutionQueueItem> = jobQueues.values.flatMap { it.toList() }
 }

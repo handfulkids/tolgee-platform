@@ -1,6 +1,7 @@
 package io.tolgee.batch.processors
 
-import io.tolgee.batch.ChunkProcessor
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.tolgee.batch.AbstractChunkProcessor
 import io.tolgee.batch.ProgressManager
 import io.tolgee.batch.data.BatchJobDto
 import io.tolgee.batch.request.ClearTranslationsRequest
@@ -16,7 +17,8 @@ class ClearTranslationsChunkProcessor(
   private val translationService: TranslationService,
   private val entityManager: EntityManager,
   private val progressManager: ProgressManager,
-) : ChunkProcessor<ClearTranslationsRequest, ClearTranslationsJobParams, Long> {
+  objectMapper: ObjectMapper,
+) : AbstractChunkProcessor<ClearTranslationsRequest, ClearTranslationsJobParams, Long>(objectMapper) {
   override fun process(
     job: BatchJobDto,
     chunk: List<Long>,
@@ -50,4 +52,9 @@ class ClearTranslationsChunkProcessor(
       languageIds = data.languageIds
     }
   }
+
+  override fun getChunkSize(
+    request: ClearTranslationsRequest,
+    projectId: Long?,
+  ): Int = 5000
 }

@@ -13,6 +13,7 @@ import io.tolgee.batch.processors.HardDeleteKeysChunkProcessor
 import io.tolgee.batch.processors.MachineTranslationChunkProcessor
 import io.tolgee.batch.processors.NoOpChunkProcessor
 import io.tolgee.batch.processors.PreTranslationByTmChunkProcessor
+import io.tolgee.batch.processors.QaCheckChunkProcessor
 import io.tolgee.batch.processors.RestoreKeysChunkProcessor
 import io.tolgee.batch.processors.SetKeysNamespaceChunkProcessor
 import io.tolgee.batch.processors.SetTranslationsStateChunkProcessor
@@ -31,10 +32,13 @@ enum class BatchJobType(
   val processor: KClass<out ChunkProcessor<*, *, *>>,
   val defaultRetryWaitTimeInMs: Int = 2000,
   /**
-   * Whether run of this job type should be exclusive for a project
-   * So only one job can run at a time for a project
+   * Default value for whether this job type should be exclusive for a project
+   * (only one job can run at a time for a project).
+   *
+   * Can be overridden via `tolgee.batch.job-type-overrides.<TYPE>.exclusive`.
+   * Use [io.tolgee.configuration.tolgee.BatchProperties.isExclusive] to get the effective value.
    */
-  val exclusive: Boolean = true,
+  val defaultExclusive: Boolean = true,
 ) {
   AI_PLAYGROUND_TRANSLATE(
     maxRetries = 3,
@@ -54,7 +58,7 @@ enum class BatchJobType(
     activityType = ActivityType.AUTO_TRANSLATE,
     maxRetries = 3,
     processor = AutoTranslateChunkProcessor::class,
-    exclusive = false,
+    defaultExclusive = false,
   ),
   DELETE_KEYS(
     activityType = ActivityType.KEY_SOFT_DELETE,
@@ -105,7 +109,7 @@ enum class BatchJobType(
     activityType = ActivityType.AUTOMATION,
     maxRetries = 3,
     processor = AutomationChunkProcessor::class,
-    exclusive = false,
+    defaultExclusive = false,
   ),
   BILLING_TRIAL_EXPIRATION_NOTICE(
     maxRetries = 3,
@@ -121,10 +125,15 @@ enum class BatchJobType(
     maxRetries = 3,
     processor = UnassignTranslationLabelChunkProcessor::class,
   ),
+  QA_CHECK(
+    maxRetries = 3,
+    processor = QaCheckChunkProcessor::class,
+    defaultExclusive = false,
+  ),
   NO_OP(
     activityType = null,
     maxRetries = 0,
     processor = NoOpChunkProcessor::class,
-    exclusive = false,
+    defaultExclusive = false,
   ),
 }

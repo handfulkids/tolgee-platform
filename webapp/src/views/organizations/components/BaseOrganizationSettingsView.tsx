@@ -23,13 +23,9 @@ type Props = BaseViewProps & {
   link: Link;
 };
 
-export const BaseOrganizationSettingsView: React.FC<Props> = ({
-  children,
-  loading,
-  navigation,
-  link,
-  ...otherProps
-}) => {
+export const BaseOrganizationSettingsView: React.FC<
+  React.PropsWithChildren<Props>
+> = ({ children, loading, navigation, link, ...otherProps }) => {
   const config = useConfig();
   const match = useRouteMatch();
   const organizationSlug = match.params[PARAMS.ORGANIZATION_SLUG];
@@ -82,6 +78,21 @@ export const BaseOrganizationSettingsView: React.FC<Props> = ({
     }),
     label: t('organization_menu_glossaries'),
   });
+
+  // TM browse is gated server-side to actual org members — hide the link for project-only
+  // viewers so they don't land on a 403. Glossary stays visible for parity since it carries
+  // no virtual cross-project content.
+  if (preferredOrganization?.currentUserRole != null || isAdminOrSupporter) {
+    menuItems.push({
+      link: LINKS.ORGANIZATION_TRANSLATION_MEMORIES.build({
+        [PARAMS.ORGANIZATION_SLUG]: organizationSlug,
+      }),
+      label: t(
+        'organization_menu_translation_memories',
+        'Translation memories'
+      ),
+    });
+  }
 
   if (canManageOrganization) {
     menuItems.push({

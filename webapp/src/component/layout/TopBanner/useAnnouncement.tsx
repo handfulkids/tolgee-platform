@@ -1,6 +1,7 @@
 import { T, useTranslate } from '@tolgee/react';
 import { assertUnreachableReturnNull } from 'tg.fixtures/assertUnreachable';
 import { components } from 'tg.service/apiSchema.generated';
+import { DOCS_LINKS } from 'tg.constants/docLinks';
 import { Announcement } from './Announcement';
 import { BannerLink } from './BannerLink';
 
@@ -162,6 +163,49 @@ export function useAnnouncement() {
                     <BannerLink href="https://docs.tolgee.io/android-sdk" />
                   ),
                   linkIos: <BannerLink href="https://docs.tolgee.io/ios-sdk" />,
+                }}
+              />
+            }
+          />
+        );
+
+      case 'FEATURE_BRANCHING':
+        return (
+          <Announcement
+            content={
+              <T
+                keyName="announcement_branching"
+                defaultValue="We've released Branching!"
+              />
+            }
+            link="https://docs.tolgee.io/platform/branching/overview"
+          />
+        );
+
+      case 'FEATURE_TRANSLATION_MEMORY_MANAGEMENT':
+        return (
+          <Announcement
+            content={
+              <T
+                keyName="announcement_translation_memory_management"
+                defaultValue="We've released Translation Memory management!"
+              />
+            }
+            link={DOCS_LINKS.translationMemoryManagement}
+          />
+        );
+
+      case 'FEATURE_QA_CHECKS_AND_TRANSLATION_MEMORY':
+        return (
+          <Announcement
+            content={
+              <T
+                keyName="announcement_qa_checks_and_translation_memory"
+                params={{
+                  linkQa: <BannerLink href={DOCS_LINKS.qaChecks} />,
+                  linkTm: (
+                    <BannerLink href={DOCS_LINKS.translationMemoryManagement} />
+                  ),
                 }}
               />
             }

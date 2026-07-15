@@ -8,12 +8,15 @@ import { useProject } from 'tg.hooks/useProject';
 import { queryEncode } from 'tg.hooks/useUrlSearchState';
 import { KeyReferenceData } from '../types';
 import { CircledLanguageIcon } from 'tg.component/languages/CircledLanguageIcon';
+import { KeyName } from 'tg.component/KeyName/KeyName';
 
 type Props = {
   data: KeyReferenceData;
 };
 
-export const KeyReference: React.FC<Props> = ({ data }) => {
+export const KeyReference: React.FC<React.PropsWithChildren<Props>> = ({
+  data,
+}) => {
   const project = useProject();
 
   const href = data.exists
@@ -50,7 +53,7 @@ export const KeyReference: React.FC<Props> = ({ data }) => {
         {data.namespace && (
           <span className="referencePrefix">{data.namespace}</span>
         )}
-        {data.keyName}
+        <KeyName name={data.keyName} />
         {data.languages && ' '}
       </span>
       {uniqueLanguages.map((l, i) => (

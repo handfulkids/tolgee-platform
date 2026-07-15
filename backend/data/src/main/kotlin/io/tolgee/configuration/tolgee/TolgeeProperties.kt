@@ -110,6 +110,7 @@ class TolgeeProperties(
   var batch: BatchProperties = BatchProperties(),
   var cache: CacheProperties = CacheProperties(),
   var recaptcha: ReCaptchaProperties = ReCaptchaProperties(),
+  var languageTool: LanguageToolProperties = LanguageToolProperties(),
   var machineTranslation: MachineTranslationProperties = MachineTranslationProperties(),
   var postgresAutostart: PostgresAutostartProperties = PostgresAutostartProperties(),
   @DocProperty(hidden = true)
@@ -120,15 +121,23 @@ class TolgeeProperties(
   var postHog: PostHogProperties = PostHogProperties(),
   var telemetry: TelemetryProperties = TelemetryProperties(),
   var contentDelivery: ContentDeliveryProperties = ContentDeliveryProperties(),
+  var webhook: WebhookProperties = WebhookProperties(),
   var slack: SlackProperties = SlackProperties(),
   @DocProperty(hidden = true)
   var plausible: PlausibleProperties = PlausibleProperties(),
   @DocProperty(
-    description = "Maximum amount of languages that can be selected in the Translations view",
+    description = "Maximum amount of languages that can be selected in the Translations view. Set to -1 for no limit.",
   )
-  var translationsViewLanguagesLimit: Int = 10,
+  var translationsViewLanguagesLimit: Int = -1,
   @DocProperty(
     description = "LLM Providers configuration",
   )
   var llm: LlmProperties = LlmProperties(),
+  @DocProperty(
+    description =
+      "Public URL of the Tolgee API endpoint. While this typically matches the 'frontEndUrl', " +
+        "it should be set separately when running the backend on a different URL." +
+        "\n\n",
+  )
+  var backEndUrl: String? = null,
 )

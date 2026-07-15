@@ -2,8 +2,6 @@ buildscript {
     repositories {
         mavenCentral()
     }
-    dependencies {
-    }
 }
 
 plugins {
@@ -29,11 +27,7 @@ allOpen {
     annotation("org.springframework.boot.test.context.SpringBootTest")
 }
 
-repositories {
-    mavenCentral()
-}
-
-test {
+tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = "4096m"
     rootProject.setTestRetry(it)
@@ -49,6 +43,7 @@ dependencies {
     implementation libs.jjwtJackson
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+
     testImplementation(project(":testing"))
     testImplementation(project(":security"))
     testImplementation(project(":ee-app"))
@@ -56,10 +51,12 @@ dependencies {
     testImplementation(project(":api"))
     testImplementation(project(":data"))
     testImplementation(project(":misc"))
+    testImplementation "org.springframework.boot:spring-boot-starter-websocket"
     testImplementation libs.jsonUnitAssert
     testImplementation libs.mockito
     testImplementation libs.stripe
     testImplementation libs.jacksonModuleKotlin
+    testImplementation('com.github.jknack:handlebars:4.4.0')
     testImplementation platform(libs.mcpBom)
     testImplementation libs.mcp
     ktlint(project(":ktlint"))

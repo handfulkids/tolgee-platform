@@ -75,8 +75,9 @@ class PromptFragmentsHelper {
         "translationMemory",
         """
         {{#if translationMemory.json}}
-        These are some results from translation memory from the same project. You may use this as a inspiraton:
-        
+        These are some results from translation memory from the same project, you may reuse them.
+        Their `{}` placeholders may differ from the source or appear translated, ignore that. Always keep the `{}` placeholders exactly as they appear in the source and never translate, replace, or modify them:
+
         {{translationMemory.json}}
         {{/if}}
         """.trimIndent(),
@@ -90,10 +91,17 @@ class PromptFragmentsHelper {
         "glossary",
         """
         {{#if glossary.json}}
-        These glossary terms should be strictly used, adjust form to fit into the context:
+        Use these glossary terms when the source text contains them, adapting the form to fit the context:
         {{glossary.json}}
         
+        Field descriptions:
+        source: the term as it appears in the source text.
+        target: how the term should be translated in {{target.languageName}}. When present, use it and adapt its form to the context. When absent, translate the term naturally like any other word.
+        description: extra guidance on how to handle this term; follow it.
         isCaseSensitive: If true, strictly follow the term casing, otherwise adjust casing to fit the context
+        {{#if glossary.hasAbbreviation}}
+        isAbbreviation: the term is an abbreviation.
+        {{/if}}
         {{#if glossary.hasForbiddenTerm}}
         isForbidden = Do not use it in the resulting translation.
         {{/if}}
@@ -127,7 +135,16 @@ class PromptFragmentsHelper {
       Variable(
         "icuInfo",
         """
-        If message includes ICU parameters in curly braces, don't modify the parameter names.
+        If a message contains text inside curly braces `{}`, treat it as an ICU parameter or placeholder. 
+        Never translate, modify, reorder, or remove placeholder names or variables inside `{}`. 
+        Exception: in ICU plural or select structures, translate only the human-readable text within each branch (e.g. the word "item" in one {# item}).
+        
+        The translated string must contain every `{}` placeholder from the source. The number of placeholders and their exact content must match the source.
+        
+        If a placeholder `{}` changes position in the translation compared to the source, ensure capitalization still matches the source style and follows the target language grammar.
+        
+        Adapt existing punctuation to the conventions of the target language, but do not add punctuation that is not present in the source unless the target language grammar requires it.
+        
         {{#if target.pluralFormExamples}}
         Translate ICU message plural forms, these are examples of source strings with placeholder replaced with example number
         for {{target.languageName}}:
@@ -171,6 +188,22 @@ class PromptFragmentsHelper {
         """.trimIndent(),
         type = PromptVariableType.FRAGMENT,
         option = BasicPromptOption.KEY_DESCRIPTION,
+      ),
+    )
+
+    result.add(
+      Variable(
+        "charLimit",
+        """
+        {{#if key.maxCharLimit}}
+        IMPORTANT: The translation MUST NOT exceed {{key.maxCharLimit}} characters.
+        Keep the translation concise to fit within this limit.
+        {{#if target.pluralFormExamples}}
+        This limit applies to each plural variant separately.
+        {{/if}}
+        {{/if}}
+        """.trimIndent(),
+        type = PromptVariableType.FRAGMENT,
       ),
     )
 

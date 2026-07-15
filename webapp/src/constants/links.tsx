@@ -2,8 +2,8 @@ export class Link {
   _template: string;
 
   /**
-   * Constructor is private to avoid creating of unrefactorable links
-   * @param template
+   * Private to force construction via `ofRoot` / `ofParent`, so all links are
+   * refactor-safe and composed from the existing hierarchy.
    */
   private constructor(template: string) {
     this._template = template;
@@ -30,9 +30,8 @@ export class Link {
     return new Link(`${link ? link.template : ''}/${itemTemplate}`);
   }
 
-  public build(params?: { [key: string]: string | number }): string {
+  public build(params: { [key: string]: string | number } = {}): string {
     let link = this.template;
-    params = params ? params : {};
     for (const param of Object.keys(params)) {
       link = link.replace(`:${param}`, params[param].toString());
     }
@@ -60,11 +59,13 @@ export enum PARAMS {
   VERIFICATION_CODE = 'verificationCode',
   ORGANIZATION_SLUG = 'slug',
   GLOSSARY_ID = 'glossaryId',
+  TRANSLATION_MEMORY_ID = 'translationMemoryId',
   TRANSLATION_ID = 'translationId',
   PLAN_ID = 'planId',
   TA_ID = 'taId',
   BRANCH = 'branch',
   MERGE_ID = 'mergeId',
+  PLAN_MIGRATION_ID = 'migrationId',
 }
 
 export class LINKS {
@@ -198,56 +199,6 @@ export class LINKS {
     'ee-license'
   );
 
-  static ADMINISTRATION_EE_TA = Link.ofParent(
-    LINKS.ADMINISTRATION,
-    'ee-translation-agencies'
-  );
-
-  static ADMINISTRATION_EE_TA_CREATE = Link.ofParent(
-    LINKS.ADMINISTRATION_EE_TA,
-    'create'
-  );
-
-  static ADMINISTRATION_EE_TA_EDIT = Link.ofParent(
-    LINKS.ADMINISTRATION_EE_TA,
-    p(PARAMS.TA_ID) + '/edit'
-  );
-
-  static ADMINISTRATION_BILLING_CLOUD_PLANS = Link.ofParent(
-    LINKS.ADMINISTRATION,
-    'cloud-plans'
-  );
-
-  static ADMINISTRATION_BILLING_CLOUD_PLAN_EDIT = Link.ofParent(
-    LINKS.ADMINISTRATION_BILLING_CLOUD_PLANS,
-    p(PARAMS.PLAN_ID)
-  );
-
-  static ADMINISTRATION_BILLING_CLOUD_PLAN_CREATE = Link.ofParent(
-    LINKS.ADMINISTRATION_BILLING_CLOUD_PLANS,
-    'create'
-  );
-
-  static ADMINISTRATION_BILLING_EE_PLANS = Link.ofParent(
-    LINKS.ADMINISTRATION,
-    'ee-plans'
-  );
-
-  static ADMINISTRATION_BILLING_SUBSCRIPTIONS = Link.ofParent(
-    LINKS.ADMINISTRATION,
-    'subscriptions'
-  );
-
-  static ADMINISTRATION_BILLING_EE_PLAN_EDIT = Link.ofParent(
-    LINKS.ADMINISTRATION_BILLING_EE_PLANS,
-    p(PARAMS.PLAN_ID)
-  );
-
-  static ADMINISTRATION_BILLING_EE_PLAN_CREATE = Link.ofParent(
-    LINKS.ADMINISTRATION_BILLING_EE_PLANS,
-    'create'
-  );
-
   /**
    * Organizations
    */
@@ -290,11 +241,6 @@ export class LINKS {
     'billing-test-clock-helper'
   );
 
-  static ORGANIZATION_BILLING_PLANS_EDIT = Link.ofParent(
-    LINKS.ORGANIZATION,
-    'billing-plans-edit'
-  );
-
   static ORGANIZATION_SUBSCRIPTIONS_SELF_HOSTED_EE = Link.ofParent(
     LINKS.ORGANIZATION_SUBSCRIPTIONS,
     'self-hosted-ee'
@@ -321,6 +267,16 @@ export class LINKS {
   );
 
   static ORGANIZATION_GLOSSARY_VIEW = LINKS.ORGANIZATION_GLOSSARY;
+
+  static ORGANIZATION_TRANSLATION_MEMORIES = Link.ofParent(
+    LINKS.ORGANIZATION,
+    'translation-memories'
+  );
+
+  static ORGANIZATION_TRANSLATION_MEMORY = Link.ofParent(
+    LINKS.ORGANIZATION_TRANSLATION_MEMORIES,
+    p(PARAMS.TRANSLATION_MEMORY_ID)
+  );
 
   /**
    * Slack
@@ -405,6 +361,8 @@ export class LINKS {
 
   static PROJECT_CONTEXT_DATA = Link.ofParent(LINKS.PROJECT_AI, 'context-data');
 
+  static PROJECT_AI_PROMPTS = Link.ofParent(LINKS.PROJECT_AI, 'prompts');
+
   static PROJECT_INTEGRATE = Link.ofParent(LINKS.PROJECT, 'integrate');
 
   /**
@@ -424,6 +382,7 @@ export class LINKS {
 
   static PROJECT_EDIT = Link.ofParent(LINKS.PROJECT_MANAGE, 'edit');
   static PROJECT_EDIT_ADVANCED = Link.ofParent(LINKS.PROJECT_EDIT, 'advanced');
+  static PROJECT_EDIT_QA = Link.ofParent(LINKS.PROJECT_EDIT, 'qa');
   static PROJECT_EDIT_LABELS = Link.ofParent(LINKS.PROJECT_EDIT, 'labels');
 
   static PROJECT_LANGUAGES = Link.ofParent(LINKS.PROJECT, 'languages');
@@ -503,6 +462,27 @@ export enum QUERY {
   TRANSLATIONS_AI_PLAYGROUND = 'aiPlayground',
   TRANSLATIONS_AI_PLAYGROUND_PROMPT = 'prompt',
 }
+
+export const getProjectTranslationsUrl = (
+  projectId: number,
+  options?: {
+    languages?: string[];
+    filters?: Record<string, unknown>;
+  }
+) => {
+  const base = LINKS.PROJECT_TRANSLATIONS.build({
+    [PARAMS.PROJECT_ID]: projectId,
+  });
+  const params = new URLSearchParams();
+  if (options?.languages?.length) {
+    options.languages.forEach((l) => params.append('languages', l));
+  }
+  if (options?.filters && Object.keys(options.filters).length > 0) {
+    params.set('filters', JSON.stringify(options.filters));
+  }
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+};
 
 export const getTaskUrl = (projectId: number, taskNumber: number) => {
   return `${LINKS.GO_TO_PROJECT_TASK.build({

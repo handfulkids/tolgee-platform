@@ -22,7 +22,7 @@ export type BatchOperation = {
   enabled: boolean;
   hidden?: boolean;
   divider?: boolean;
-  component: FC<OperationProps>;
+  component: FC<React.PropsWithChildren<OperationProps>>;
 };
 
 export const addOperations = createMultiAdder<BatchOperation>({
@@ -34,7 +34,6 @@ export type BatchOperationAdder = ReturnType<typeof addOperations>;
 export const useBatchOperations = () => {
   const { satisfiesPermission, satisfiesPermissionWithBranching } =
     useProjectPermissions();
-
   const { t } = useTranslate();
 
   const canEditKey = satisfiesPermissionWithBranching('keys.edit');

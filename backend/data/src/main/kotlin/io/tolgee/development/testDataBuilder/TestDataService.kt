@@ -1,7 +1,7 @@
 package io.tolgee.development.testDataBuilder
 
 import io.tolgee.activity.ActivityHolder
-import io.tolgee.component.eventListeners.LanguageStatsListener
+import io.tolgee.component.eventListeners.BypassableActivityListener
 import io.tolgee.development.testDataBuilder.builders.AuthProviderChangeRequestBuilder
 import io.tolgee.development.testDataBuilder.builders.BatchJobBuilder
 import io.tolgee.development.testDataBuilder.builders.GlossaryBuilder
@@ -13,6 +13,7 @@ import io.tolgee.development.testDataBuilder.builders.PatBuilder
 import io.tolgee.development.testDataBuilder.builders.ProjectBuilder
 import io.tolgee.development.testDataBuilder.builders.TestDataBuilder
 import io.tolgee.development.testDataBuilder.builders.TranslationBuilder
+import io.tolgee.development.testDataBuilder.builders.TranslationMemoryBuilder
 import io.tolgee.development.testDataBuilder.builders.UserAccountBuilder
 import io.tolgee.development.testDataBuilder.builders.UserPreferencesBuilder
 import io.tolgee.development.testDataBuilder.builders.slack.SlackUserConnectionBuilder
@@ -91,7 +92,7 @@ class TestDataService(
   private val activityHolder: ActivityHolder,
   private val automationService: AutomationService,
   private val contentDeliveryConfigService: ContentDeliveryConfigService,
-  private val languageStatsListener: LanguageStatsListener,
+  private val bypassableActivityListeners: List<BypassableActivityListener>,
   private val invitationService: InvitationService,
   private val keyCodeReferenceRepository: KeyCodeReferenceRepository,
 ) : Logging {
@@ -106,37 +107,44 @@ class TestDataService(
   @Transactional
   fun saveTestData(builder: TestDataBuilder) {
     activityHolder.enableAutoCompletion = false
-    languageStatsListener.bypass = true
-    runBeforeSaveMethodsOfAdditionalSavers(builder)
-    prepare()
+    bypassableActivityListeners.forEach { it.bypass = true }
+    try {
+      runBeforeSaveMethodsOfAdditionalSavers(builder)
+      prepare()
 
-    // Projects have to be stored in separate transaction since projectHolder's
-    // project has to be stored for transaction scope.
-    //
-    // To be able to save project in its separate transaction,
-    // user/organization has to be stored first.
-    executeInNewTransaction(transactionManager) {
-      generateSlugsForOrganizations(builder)
-      saveAllUsers(builder)
-      saveOrganizationData(builder)
+      // Projects have to be stored in separate transaction since projectHolder's
+      // project has to be stored for transaction scope.
+      //
+      // To be able to save project in its separate transaction,
+      // user/organization has to be stored first.
+      executeInNewTransaction(transactionManager) {
+        generateSlugsForOrganizations(builder)
+        saveAllUsers(builder)
+        saveOrganizationData(builder)
+      }
+
+      executeInNewTransaction(transactionManager) {
+        additionalTestDataSavers.forEach { it.save(builder) }
+      }
+      entityManager.flush()
+      entityManager.clear()
+
+      executeInNewTransaction(transactionManager) {
+        saveProjectData(builder)
+        saveGlossaryData(builder)
+        // Must run before saveTranslationMemoryData — auto-added project TMs are appended to the
+        // builder tree and get persisted by the regular TM pass alongside fixture-declared ones.
+        ensureProjectTms(builder)
+        saveTranslationMemoryData(builder)
+        saveNotifications(builder)
+        finalize()
+      }
+
+      updateLanguageStats(builder)
+    } finally {
+      activityHolder.enableAutoCompletion = true
+      bypassableActivityListeners.forEach { it.bypass = false }
     }
-
-    executeInNewTransaction(transactionManager) {
-      additionalTestDataSavers.forEach { it.save(builder) }
-    }
-    entityManager.flush()
-    entityManager.clear()
-
-    executeInNewTransaction(transactionManager) {
-      saveProjectData(builder)
-      saveGlossaryData(builder)
-      saveNotifications(builder)
-      finalize()
-    }
-
-    updateLanguageStats(builder)
-    activityHolder.enableAutoCompletion = true
-    languageStatsListener.bypass = false
 
     runAfterSaveMethodsOfAdditionalSavers(builder)
   }
@@ -289,6 +297,59 @@ class TestDataService(
     }
   }
 
+  private fun saveTranslationMemoryData(builder: TestDataBuilder) {
+    val builders = saveTranslationMemories(builder)
+    saveTranslationMemoryDependants(builders)
+  }
+
+  private fun saveTranslationMemories(builder: TestDataBuilder): List<TranslationMemoryBuilder> {
+    val builders = builder.data.organizations.flatMap { it.data.translationMemories }
+    builders.filter { it.self.id == 0L }.forEach { entityManager.persist(it.self) }
+    return builders
+  }
+
+  private fun saveTranslationMemoryDependants(builders: List<TranslationMemoryBuilder>) {
+    saveTranslationMemoryProjectAssignments(builders)
+    saveTranslationMemoryEntries(builders)
+  }
+
+  private fun saveTranslationMemoryProjectAssignments(builders: List<TranslationMemoryBuilder>) {
+    builders
+      .flatMap { it.data.projectAssignments }
+      .filter { it.self.id == 0L }
+      .forEach { entityManager.persist(it.self) }
+  }
+
+  private fun saveTranslationMemoryEntries(builders: List<TranslationMemoryBuilder>) {
+    builders
+      .flatMap { it.data.entries }
+      .filter { it.self.id == 0L }
+      .forEach { entityManager.persist(it.self) }
+  }
+
+  /**
+   * Mirrors [io.tolgee.service.project.ProjectCreationService] which creates a project TM for
+   * every newly-created project. Builders bypass `ProjectCreationService` and persist projects
+   * directly, so without this step legacy fixtures lack a project TM and the suggestion path
+   * (which assumes the invariant "every project has a project TM") returns empty matches.
+   *
+   * Skips fixtures with a soft-deleted project or no organization owner — those represent
+   * incomplete setups (deletion-tests, in-progress edits) where adding a TM would just confuse
+   * the test. Defers to [ProjectBuilder.ensureProjectTm], which itself short-circuits when the
+   * fixture explicitly declared a PROJECT-type TM.
+   */
+  private fun ensureProjectTms(builder: TestDataBuilder) {
+    builder.data.projects.forEach { projectBuilder ->
+      val project = projectBuilder.self
+      if (project.deletedAt != null) return@forEach
+      // organizationOwner is a lateinit var on Project; some fixtures construct projects without
+      // setting it (in-progress edits, partial templates) and accessing the field would throw.
+      val ownerSet = runCatching { project.organizationOwner }.isSuccess
+      if (!ownerSet) return@forEach
+      projectBuilder.ensureProjectTm()
+    }
+  }
+
   private fun finalize() {
     entityManager.flush()
     clearEntityManager()
@@ -323,6 +384,7 @@ class TestDataService(
     saveSlackConfigs(builder)
     saveAutomations(builder)
     saveImportSettings(builder)
+    saveQaConfigs(builder)
     saveBatchJobs(builder)
     saveTasks(builder)
     saveTaskKeys(builder)
@@ -340,6 +402,13 @@ class TestDataService(
     }
   }
 
+  private fun saveQaConfigs(builder: ProjectBuilder) {
+    builder.data.qaConfig?.let { entityManager.persist(it.self) }
+    builder.data.languages
+      .mapNotNull { it.data.qaConfig }
+      .forEach { entityManager.persist(it.self) }
+  }
+
   private fun saveWebhookConfigs(builder: ProjectBuilder) {
     builder.data.webhookConfigs.forEach {
       entityManager.persist(it.self)
@@ -347,16 +416,9 @@ class TestDataService(
   }
 
   private fun saveSlackConfigs(builder: ProjectBuilder) {
-    builder.data.slackConfigs.forEach {
-      entityManager.persist(it.self)
-    }
-
     builder.data.slackConfigs.forEach { slackConfig ->
-      val messages =
-        slackConfig.data.slackMessages
-          .map { it.self }
-          .toMutableList()
-      messages.forEach { entityManager.persist(it) }
+      entityManager.persist(slackConfig.self)
+      slackConfig.data.slackMessages.forEach { entityManager.persist(it.self) }
     }
   }
 
@@ -451,6 +513,8 @@ class TestDataService(
   private fun saveTranslationDependants(translationBuilders: List<TranslationBuilder>) {
     val translationComments = translationBuilders.flatMap { it.data.comments.map { it.self } }
     translationCommentService.saveAll(translationComments)
+    val qaIssues = translationBuilders.flatMap { it.data.qaIssues.map { it.self } }
+    qaIssues.forEach { entityManager.persist(it) }
   }
 
   private fun saveTranslations(builder: ProjectBuilder): List<TranslationBuilder> {
@@ -460,7 +524,7 @@ class TestDataService(
   }
 
   private fun saveKeys(builder: ProjectBuilder): List<KeyBuilder> {
-    val keyBuilders = builder.data.keys.map { it }
+    val keyBuilders = builder.data.keys
     keyService.saveAll(keyBuilders.map { it.self })
     return keyBuilders
   }
@@ -490,7 +554,7 @@ class TestDataService(
   }
 
   private fun saveAllKeyDependants(keyBuilders: List<KeyBuilder>) {
-    val metas = keyBuilders.map { it.data.meta?.self }.filterNotNull()
+    val metas = keyBuilders.mapNotNull { it.data.meta?.self }
     tagService.saveAll(metas.flatMap { it.tags })
     keyCodeReferenceRepository.saveAll(metas.flatMap { it.codeReferences })
     keyMetaService.saveAll(metas)
@@ -498,7 +562,7 @@ class TestDataService(
 
   private fun saveAllImportDependants(importBuilders: List<ImportBuilder>) {
     val importFileBuilders = importBuilders.flatMap { it.data.importFiles }
-    val importKeyMetas = importFileBuilders.flatMap { it.data.importKeys.map { it.self.keyMeta } }.filterNotNull()
+    val importKeyMetas = importFileBuilders.flatMap { it.data.importKeys.mapNotNull { it.self.keyMeta } }
     keyMetaService.saveAll(importKeyMetas)
     keyMetaService.saveAllCodeReferences(importKeyMetas.flatMap { it.codeReferences })
     keyMetaService.saveAllComments(importKeyMetas.flatMap { it.comments })
@@ -567,7 +631,12 @@ class TestDataService(
   }
 
   private fun saveUserPreferences(data: List<UserPreferencesBuilder>) {
-    data.forEach { userPreferencesService.save(it.self) }
+    data.forEach {
+      val savedPreferences = userPreferencesService.save(it.self)
+      // Synchronize the bidirectional relationship to avoid Hibernate 6.6's CHECK_ON_FLUSH
+      // validation error when UserAccount references an unsaved UserPreferences
+      it.userAccountBuilder.self.preferences = savedPreferences
+    }
   }
 
   private fun saveAuthProviderChangeRequests(data: List<AuthProviderChangeRequestBuilder>) {

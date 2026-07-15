@@ -1,7 +1,7 @@
 package io.tolgee.ee.component
 
-import com.github.jknack.handlebars.Handlebars
 import io.tolgee.ee.data.prompt.PromptVariableDto
+import io.tolgee.ee.service.prompt.PromptHandlebarsHelper
 import io.tolgee.model.enums.BasicPromptOption
 import io.tolgee.model.enums.PromptVariableType
 
@@ -24,8 +24,8 @@ class PromptLazyMap : AbstractMap<String, Any?>() {
       return lazyMap
     }
 
-    val stringValue = promptValue?.lazyValue?.let { it() } ?: promptValue?.value
-    return stringValue?.let { if (it is String) Handlebars.SafeString(it) else it }
+    val stringValue = promptValue?.lazyValue?.invoke() ?: promptValue?.value
+    return stringValue?.let { PromptHandlebarsHelper.toRenderable(it) }
   }
 
   override val entries: Set<Map.Entry<String, Any?>>
@@ -45,12 +45,18 @@ class PromptLazyMap : AbstractMap<String, Any?>() {
     class Variable(
       val name: String,
       var value: Any? = null,
-      var lazyValue: (() -> Any?)? = null,
+      lazyValue: (() -> Any?)? = null,
       val description: String? = null,
       val props: MutableList<Variable> = mutableListOf(),
       val type: PromptVariableType? = null,
       val option: BasicPromptOption? = null,
     ) {
+      val lazyValue: (() -> Any?)? =
+        lazyValue?.let {
+          val cached by lazy { it() }
+          return@let { cached }
+        }
+
       fun toPromptVariableDto(): PromptVariableDto {
         val computedType =
           if (props.isNotEmpty()) {

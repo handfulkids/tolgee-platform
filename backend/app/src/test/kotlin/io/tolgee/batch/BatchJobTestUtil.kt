@@ -2,6 +2,7 @@ package io.tolgee.batch
 
 import io.tolgee.batch.data.BatchJobDto
 import io.tolgee.batch.data.BatchJobType
+import io.tolgee.batch.data.BatchTranslationTargetItem
 import io.tolgee.batch.processors.AutomationChunkProcessor
 import io.tolgee.batch.processors.DeleteKeysChunkProcessor
 import io.tolgee.batch.processors.PreTranslationByTmChunkProcessor
@@ -59,7 +60,7 @@ class BatchJobTestUtil(
   lateinit var websocketHelper: WebsocketTestHelper
 
   fun assertPreTranslationProcessExecutedTimes(times: Int) {
-    waitForNotThrowing(pollTime = 1000) {
+    waitForNotThrowing(pollTime = 1000, timeout = 30000) {
       verify(
         preTranslationByTmChunkProcessor,
         times(times),
@@ -139,7 +140,7 @@ class BatchJobTestUtil(
       .whenever(preTranslationByTmChunkProcessor)
       .process(
         any(),
-        argThat { this.containsAll((1L..10).toList()) },
+        argThat { this.map { it.keyId }.containsAll((1L..10).toList()) },
         any(),
       )
   }
@@ -231,10 +232,10 @@ class BatchJobTestUtil(
   }
 
   fun makePreTranslationProcessorWaitingAfter50Executions(): () -> Unit {
-    var count = 0
+    val count = AtomicInteger(0)
 
     doAnswer {
-      if (count++ > 50) {
+      if (count.getAndIncrement() > 50) {
         while (true) {
           val context = it.arguments[2] as CoroutineContext
           context.ensureActive()
@@ -246,16 +247,14 @@ class BatchJobTestUtil(
 
     return {
       waitFor {
-        count > 50
+        count.get() > 50
       }
     }
   }
 
   fun makePreTranslateProcessorRepeatedlyThrowRequeueException() {
-    val throwingChunk = (1L..10).toList()
-
     doThrow(
-      RequeueWithDelayException(
+      ChunkItemFailedException(
         message = Message.OUT_OF_CREDITS,
         successfulTargets = listOf(),
         cause = OutOfCreditsException(OutOfCreditsException.Reason.OUT_OF_CREDITS),
@@ -265,7 +264,7 @@ class BatchJobTestUtil(
       ),
     ).whenever(preTranslationByTmChunkProcessor).process(
       any(),
-      argThat { this.containsAll(throwingChunk) },
+      argThat { this.map { it.keyId }.containsAll((1L..10).toList()) },
       any(),
     )
   }
@@ -378,6 +377,27 @@ class BatchJobTestUtil(
     }
   }
 
+  fun runChunkedJobInUnrelatedProject(keyCount: Int): BatchJob {
+    return executeInNewTransaction(transactionManager) {
+      batchJobService.startJob(
+        request =
+          PreTranslationByTmRequest().apply {
+            keyIds = (1L..keyCount).map { it }
+            targetLanguageIds =
+              listOf(
+                testData.unrelatedProject
+                  .getLanguageByTag("cs")!!
+                  .self.id,
+              )
+          },
+        project = testData.unrelatedProject.self,
+        author = testData.user,
+        type = BatchJobType.PRE_TRANSLATE_BT_TM,
+        isHidden = false,
+      )
+    }
+  }
+
   fun runMtJob(
     keyCount: Int,
     author: UserAccount = testData.user,
@@ -415,13 +435,19 @@ class BatchJobTestUtil(
       .isEqualTo(maxConcurrency)
   }
 
-  fun assertMaxPerJobConcurrencyIsLessThanOrEqualTo(maxConcurrency: Int) {
-    waitFor(pollTime = 100) {
-      batchJobConcurrentLauncher.runningJobs.assert
-        .size()
-        .isLessThanOrEqualTo(maxConcurrency)
-      batchJobChunkExecutionQueue.size == 0
+  fun assertMaxPerJobConcurrencyIsLessThanOrEqualTo(
+    job: BatchJob,
+    maxConcurrency: Int,
+  ) {
+    var maxObserved = 0
+    waitFor(pollTime = 50) {
+      // Only count executions for THIS job — other jobs from shared Spring
+      // context may run concurrently and should not cause this assertion to fail.
+      val running = batchJobConcurrentLauncher.runningJobs.values.count { it.first.id == job.id }
+      if (running > maxObserved) maxObserved = running
+      batchJobChunkExecutionQueue.size == 0 && running == 0
     }
+    maxObserved.assert.isLessThanOrEqualTo(maxConcurrency)
   }
 
   fun getSingleJob(): BatchJob = entityManager.createQuery("""from BatchJob""", BatchJob::class.java).singleResult

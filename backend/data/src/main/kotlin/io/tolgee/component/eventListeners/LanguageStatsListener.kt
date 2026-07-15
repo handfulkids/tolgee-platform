@@ -1,5 +1,9 @@
 package io.tolgee.component.eventListeners
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.tolgee.batch.data.BatchJobType
+import io.tolgee.batch.data.BatchTranslationTargetItem
+import io.tolgee.batch.events.OnBatchJobFinalized
 import io.tolgee.events.OnProjectActivityEvent
 import io.tolgee.model.Language
 import io.tolgee.model.Project
@@ -10,6 +14,9 @@ import io.tolgee.repository.TranslationRepository
 import io.tolgee.service.project.LanguageStatsService
 import io.tolgee.service.project.ProjectService
 import io.tolgee.util.runSentryCatching
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.Lazy
+import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionalEventListener
@@ -17,17 +24,34 @@ import kotlin.reflect.KClass
 
 @Component
 class LanguageStatsListener(
-  private var languageStatsService: LanguageStatsService,
+  private val languageStatsService: LanguageStatsService,
   private val projectService: ProjectService,
   private val keyRepository: KeyRepository,
   private val translationRepository: TranslationRepository,
-) {
-  var bypass = false
+  private val objectMapper: ObjectMapper,
+) : BypassableActivityListener {
+  @Volatile
+  override var bypass = false
+
+  @Lazy
+  @Autowired
+  private lateinit var self: LanguageStatsListener
 
   @TransactionalEventListener
-  @Async
   fun onActivity(event: OnProjectActivityEvent) {
     if (bypass) return
+    self.refreshForActivity(event)
+  }
+
+  @EventListener(OnBatchJobFinalized::class)
+  fun onQaBatchJobFinalized(event: OnBatchJobFinalized) {
+    if (bypass) return
+    if (event.job.type != BatchJobType.QA_CHECK) return
+    self.refreshForQaBatchJob(event)
+  }
+
+  @Async
+  fun refreshForActivity(event: OnProjectActivityEvent) {
     runSentryCatching {
       val projectId = event.activityRevision.projectId ?: return
 
@@ -44,15 +68,48 @@ class LanguageStatsListener(
 
       val branchIds = resolveBranches(event)
 
-      if (branchIds.contains(null)) {
-        languageStatsService.refreshLanguageStats(projectId)
+      refreshLanguageStatsForBranches(projectId, branchIds)
+    }
+  }
+
+  @Async
+  fun refreshForQaBatchJob(event: OnBatchJobFinalized) {
+    val projectId = event.job.projectId ?: return
+    runSentryCatching {
+      projectService.findDto(projectId) ?: return@runSentryCatching
+
+      val keyIds = extractKeyIdsFromQaJobTarget(event.job.target)
+      if (keyIds.isEmpty()) {
         return@runSentryCatching
       }
 
-      branchIds.forEach { branchId ->
-        languageStatsService.refreshLanguageStats(projectId, branchId)
+      val branchIds = mutableSetOf<Long?>()
+      keyIds.chunked(IN_CLAUSE_BATCH_SIZE).forEach { chunk ->
+        branchIds.addAll(keyRepository.getBranchIdsByIds(chunk))
       }
+
+      refreshLanguageStatsForBranches(projectId, branchIds)
     }
+  }
+
+  private fun refreshLanguageStatsForBranches(
+    projectId: Long,
+    branchIds: Set<Long?>,
+  ) {
+    branchIds.forEach { branchId ->
+      languageStatsService.refreshLanguageStats(projectId, branchId)
+    }
+  }
+
+  private fun extractKeyIdsFromQaJobTarget(target: List<Any>): List<Long> {
+    if (target.isEmpty()) return emptyList()
+    val type =
+      objectMapper.typeFactory.constructCollectionType(
+        List::class.java,
+        BatchTranslationTargetItem::class.java,
+      )
+    val items: List<BatchTranslationTargetItem> = objectMapper.convertValue(target, type)
+    return items.map { it.keyId }.distinct()
   }
 
   private fun affectsStats(classes: Set<KClass<*>>): Boolean {
@@ -80,8 +137,8 @@ class LanguageStatsListener(
     val keyIds = event.modifiedEntities[Key::class]?.keys.orEmpty()
     if (keyIds.isEmpty()) return
 
-    keyRepository.getBranchIdsByIds(keyIds).forEach { branchId ->
-      branchIds.add(branchId)
+    keyIds.chunked(IN_CLAUSE_BATCH_SIZE).forEach { chunk ->
+      branchIds.addAll(keyRepository.getBranchIdsByIds(chunk))
     }
   }
 
@@ -92,8 +149,12 @@ class LanguageStatsListener(
     val translationIds = event.modifiedEntities[Translation::class]?.keys.orEmpty()
     if (translationIds.isEmpty()) return
 
-    translationRepository.getBranchIdsByIds(translationIds).forEach { branchId ->
-      branchIds.add(branchId)
+    translationIds.chunked(IN_CLAUSE_BATCH_SIZE).forEach { chunk ->
+      branchIds.addAll(translationRepository.getBranchIdsByIds(chunk))
     }
+  }
+
+  companion object {
+    private const val IN_CLAUSE_BATCH_SIZE = 30_000
   }
 }

@@ -6,12 +6,14 @@ import {
   gcy,
 } from '../../common/shared';
 import {
+  deleteAllEmails,
   getParsedEmailInvitationLink,
   login,
   logout,
   setBypassSeatCountCheck,
 } from '../../common/apiCalls/common';
 import { organizationTestData } from '../../common/apiCalls/testData/testData';
+import { waitForGlobalLoading } from '../../common/loading';
 
 describe('Organization Invitations', () => {
   let organizationData: Record<string, { slug: string }>;
@@ -28,6 +30,7 @@ describe('Organization Invitations', () => {
 
   beforeEach(() => {
     setBypassSeatCountCheck(true);
+    deleteAllEmails();
   });
 
   afterEach(() => {
@@ -74,6 +77,19 @@ describe('Organization Invitations', () => {
 
   it('member invitation by email can be accepted', () => {
     testAcceptInvitation('MEMBER', true);
+  });
+
+  it('email invitation shows mismatch for wrong user', () => {
+    generateInvitationForEmail('MEMBER', 'nonexistent@test.com').then(
+      (code) => {
+        login('owner@zzzcool12.com', 'admin');
+        cy.visit(code as string);
+
+        cy.gcy('accept-invitation-email-mismatch').should('be.visible');
+        cy.gcy('accept-invitation-accept').should('not.exist');
+        cy.gcy('accept-invitation-decline').should('not.exist');
+      }
+    );
   });
 
   it('invitation can be declined right away', () => {
@@ -137,7 +153,9 @@ describe('Organization Invitations', () => {
       .contains(roleType)
       .click();
 
-    cy.gcy('invitation-dialog-input-field').type('test@invitation.com');
+    cy.gcy('invitation-dialog-input-field').type(
+      email ? 'owner@zzzcool12.com' : 'test@invitation.com'
+    );
     cy.gcy('invitation-dialog-invite-button').click();
 
     if (!email) {
@@ -145,10 +163,36 @@ describe('Organization Invitations', () => {
         return clipboard;
       });
     } else {
+      waitForGlobalLoading();
       return assertMessage('Invitation was sent').then(() => {
         return getParsedEmailInvitationLink();
       });
     }
+  };
+
+  const generateInvitationForEmail = (
+    roleType: 'MEMBER' | 'OWNER',
+    inviteeEmail: string
+  ) => {
+    const slug = getTolgeeSlug();
+
+    cy.visit(`${HOST}/organizations/${slug}/members`);
+
+    cy.gcy('invite-generate-button').click();
+
+    gcy('invitation-dialog-role-button').click();
+    gcy('organization-role-select-item')
+      .filter(':visible')
+      .contains(roleType)
+      .click();
+
+    cy.gcy('invitation-dialog-input-field').type(inviteeEmail);
+    cy.gcy('invitation-dialog-invite-button').click();
+
+    waitForGlobalLoading();
+    return assertMessage('Invitation was sent').then(() => {
+      return getParsedEmailInvitationLink();
+    });
   };
 
   const testAcceptInvitation = (

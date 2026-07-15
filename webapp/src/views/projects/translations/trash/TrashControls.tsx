@@ -60,13 +60,13 @@ type Props = {
   defaultOrder: string;
   sortOptions: { value: string; label: string }[];
   totalElements: number;
-  allPageSelected: boolean;
-  somePageSelected: boolean;
+  allSelected: boolean;
+  someSelected: boolean;
   onSelectAll: () => void;
   projectId: number;
 };
 
-export const TrashControls: React.FC<Props> = ({
+export const TrashControls: React.FC<React.PropsWithChildren<Props>> = ({
   search,
   onSearchChange,
   filters,
@@ -79,8 +79,8 @@ export const TrashControls: React.FC<Props> = ({
   defaultOrder,
   sortOptions,
   totalElements,
-  allPageSelected,
-  somePageSelected,
+  allSelected,
+  someSelected,
   onSelectAll,
   projectId,
 }) => {
@@ -149,7 +149,7 @@ export const TrashControls: React.FC<Props> = ({
         <StyledResultCount>
           <Tooltip
             title={
-              allPageSelected
+              allSelected
                 ? t('translations_clear_selection')
                 : t('translations_select_all')
             }
@@ -158,8 +158,8 @@ export const TrashControls: React.FC<Props> = ({
             <Checkbox
               data-cy="trash-select-all-header"
               size="small"
-              checked={allPageSelected}
-              indeterminate={somePageSelected}
+              checked={allSelected}
+              indeterminate={someSelected}
               onChange={onSelectAll}
             />
           </Tooltip>

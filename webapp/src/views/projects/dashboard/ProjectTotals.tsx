@@ -7,7 +7,7 @@ import { useHistory } from 'react-router-dom';
 
 import { components } from 'tg.service/apiSchema.generated';
 import { useProject } from 'tg.hooks/useProject';
-import { LINKS, PARAMS } from 'tg.constants/links';
+import { getProjectTranslationsUrl, LINKS, PARAMS } from 'tg.constants/links';
 import { useApiQuery } from 'tg.service/http/useQueryApi';
 import { useProjectPermissions } from 'tg.hooks/useProjectPermissions';
 import { useConfig, usePreferredOrganization } from 'tg.globalContext/helpers';
@@ -114,9 +114,11 @@ const StyledTileEdit = styled(Box)`
   color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
-export const ProjectTotals: React.FC<{
-  stats: components['schemas']['ProjectStatsModel'];
-}> = ({ stats }) => {
+export const ProjectTotals: React.FC<
+  React.PropsWithChildren<{
+    stats: components['schemas']['ProjectStatsModel'];
+  }>
+> = ({ stats }) => {
   const { t } = useTranslate();
   const project = useProject();
   const history = useHistory();
@@ -162,15 +164,14 @@ export const ProjectTotals: React.FC<{
   };
 
   const redirectToTranslations = () => {
-    history.push(
-      LINKS.PROJECT_TRANSLATIONS.build({ [PARAMS.PROJECT_ID]: project.id })
-    );
+    history.push(getProjectTranslationsUrl(project.id));
   };
 
   const redirectToTag = (tag: string) => () => {
     history.push(
-      LINKS.PROJECT_TRANSLATIONS.build({ [PARAMS.PROJECT_ID]: project.id }) +
-        `?filters=${encodeURIComponent(JSON.stringify({ filterTag: [tag] }))}`
+      getProjectTranslationsUrl(project.id, {
+        filters: { filterTag: [tag] },
+      })
     );
   };
 

@@ -3,7 +3,6 @@ package io.tolgee.api.v2.controllers.v2ProjectsController
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.tolgee.ProjectAuthControllerTest
-import io.tolgee.config.TestEmailConfiguration
 import io.tolgee.constants.Message
 import io.tolgee.development.testDataBuilder.data.BaseTestData
 import io.tolgee.dtos.misc.CreateProjectInvitationParams
@@ -16,6 +15,7 @@ import io.tolgee.fixtures.andHasErrorMessage
 import io.tolgee.fixtures.andIsBadRequest
 import io.tolgee.fixtures.andIsOk
 import io.tolgee.fixtures.node
+import io.tolgee.fixtures.waitForNotThrowing
 import io.tolgee.model.Invitation
 import io.tolgee.model.Permission
 import io.tolgee.model.Project
@@ -30,11 +30,9 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestEmailConfiguration::class)
 class ProjectsControllerInvitationTest : ProjectAuthControllerTest("/v2/projects/") {
   companion object {
     private const val INVITED_EMAIL = "jon@doe.com"
@@ -180,7 +178,9 @@ class ProjectsControllerInvitationTest : ProjectAuthControllerTest("/v2/projects
   @ProjectJWTAuthTestMethod
   fun `sends invitation e-mail`() {
     val code = inviteWithUserWithNameAndEmail()
-    emailTestUtil.verifyEmailSent()
+    waitForNotThrowing(timeout = 2000, pollTime = 25) {
+      emailTestUtil.verifyEmailSent()
+    }
 
     val messageContent = emailTestUtil.messageContents.single()
     assertThat(messageContent).contains(code)
@@ -192,7 +192,9 @@ class ProjectsControllerInvitationTest : ProjectAuthControllerTest("/v2/projects
   @ProjectJWTAuthTestMethod
   fun `uses frontEnd url when possible`() {
     inviteWithUserWithNameAndEmail()
-    emailTestUtil.verifyEmailSent()
+    waitForNotThrowing(timeout = 2000, pollTime = 25) {
+      emailTestUtil.verifyEmailSent()
+    }
 
     val messageContent = emailTestUtil.messageContents.single()
     assertThat(messageContent).contains("https://dummy-url.com")

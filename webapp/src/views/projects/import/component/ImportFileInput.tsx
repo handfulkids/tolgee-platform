@@ -33,6 +33,8 @@ type ImportFileInputProps = {
   loading: boolean;
   operation?: OperationType;
   operationStatus?: OperationStatusType;
+  importedKeys?: number | null;
+  totalKeys?: number | null;
   importDone: boolean;
   onImportMore: () => void;
   filesUploaded?: boolean;
@@ -56,7 +58,9 @@ const StyledRoot = styled(Box)(({ theme }) => ({
   marginTop: '16px',
 }));
 
-const ImportFileInput: FunctionComponent<ImportFileInputProps> = (props) => {
+const ImportFileInput: FunctionComponent<
+  React.PropsWithChildren<ImportFileInputProps>
+> = (props) => {
   const { t } = useTranslate();
   const fileRef = React.createRef<HTMLInputElement>();
   const config = useConfig();
@@ -157,6 +161,8 @@ const ImportFileInput: FunctionComponent<ImportFileInputProps> = (props) => {
               onImportMore={props.onImportMore}
               filesUploaded={props.filesUploaded}
               operationStatus={props.operationStatus}
+              importedKeys={props.importedKeys}
+              totalKeys={props.totalKeys}
               onActiveChange={(isActive) =>
                 props.onProgressOverlayActiveChange(isActive)
               }

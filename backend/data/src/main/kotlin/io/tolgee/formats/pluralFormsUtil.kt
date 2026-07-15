@@ -41,17 +41,23 @@ fun populateForms(
 
 fun orderPluralForms(pluralForms: Map<String, String>): Map<String, String> {
   return pluralForms.entries
-    .sortedBy {
-      val formIndex = formKeywords.indexOf(it.key)
-      if (formIndex == -1) {
-        "A_$it"
-      } else {
-        formIndex.toString()
-      }
-    }.associate { it.key to it.value }
+    .sortedWith(
+      compareBy(
+        { parseExactPluralFormKey(it.key) ?: Double.MAX_VALUE },
+        { formKeywords.indexOf(it.key) },
+        { it.key },
+      ),
+    ).associate { it.key to it.value }
 }
 
 val formKeywords = listOf("zero", "one", "two", "few", "many", "other")
+
+private fun parseExactPluralFormKey(key: String): Double? {
+  if (!key.startsWith("=")) {
+    return null
+  }
+  return key.substring(1).toDoubleOrNull()
+}
 
 /**
  * It takes the plurals and optimizes them by removing the unnecessary forms
@@ -120,12 +126,14 @@ private fun getPluralFormsFromConversionResult(converted: PossiblePluralConversi
   return PluralForms(
     converted.formsResult ?: return null,
     converted.argName ?: throw IllegalStateException("Plural argument name not found"),
+    offsets = converted.variantOffsets,
   )
 }
 
 data class PluralForms(
   val forms: Map<String, String>,
   val argName: String,
+  val offsets: Map<String, Int>? = null,
 ) {
   val icuString: String
     get() = forms.toIcuPluralString(optimize = false, argName = argName)

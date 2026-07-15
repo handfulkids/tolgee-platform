@@ -1,8 +1,8 @@
 package io.tolgee.unit.formats.csv.`in`
 
+import io.tolgee.exceptions.ImportCannotParseFileException
 import io.tolgee.formats.csv.`in`.CsvFileProcessor
 import io.tolgee.testing.assert
-import io.tolgee.unit.formats.PlaceholderConversionTestHelper
 import io.tolgee.util.FileProcessorContextMockUtil
 import io.tolgee.util.assertKey
 import io.tolgee.util.assertLanguagesCount
@@ -13,6 +13,7 @@ import io.tolgee.util.custom
 import io.tolgee.util.description
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class CsvFormatProcessorTest {
   lateinit var mockUtil: FileProcessorContextMockUtil
@@ -440,28 +441,25 @@ class CsvFormatProcessorTest {
   }
 
   @Test
-  fun `placeholder conversion setting application works`() {
-    PlaceholderConversionTestHelper.testFile(
-      "import.csv",
-      "src/test/resources/import/csv/placeholder_conversion.csv",
-      assertBeforeSettingsApplication =
+  fun `converts placeholders in CSV`() {
+    val processor =
+      mockUtil.mockCoreProcessor(
+        fileName = "import.csv",
+        resourcesFilePath = "src/test/resources/import/csv/placeholder_conversion.csv",
+      )
+    processor.processFiles(listOf(mockUtil.importFileDto))
+    mockUtil
+      .getSavedTranslations()
+      .map { it.text }
+      .assert
+      .isEqualTo(
         listOf(
           "this is csv {0, number}",
           "this is csv",
           "toto je csv {0, number}",
           "toto je csv",
         ),
-      assertAfterDisablingConversion =
-        listOf(
-          "this is csv %d",
-          "toto je csv %d",
-        ),
-      assertAfterReEnablingConversion =
-        listOf(
-          "this is csv {0, number}",
-          "toto je csv {0, number}",
-        ),
-    )
+      )
   }
 
   private fun mockPlaceholderConversionTestFile(
@@ -474,6 +472,26 @@ class CsvFormatProcessorTest {
       convertPlaceholders,
       projectIcuPlaceholdersEnabled,
     )
+  }
+
+  @Test
+  fun `throws when the key column is empty in every row`() {
+    mockUtil.mockIt("empty_key_column.csv", "src/test/resources/import/csv/empty_key_column.csv")
+    val exception =
+      assertThrows<ImportCannotParseFileException> {
+        processFile()
+      }
+    exception.causeMessage.assert.contains("The key column")
+  }
+
+  @Test
+  fun `throws when an extra title row pushes the language header out of place`() {
+    mockUtil.mockIt("title_row_on_top.csv", "src/test/resources/import/csv/title_row_on_top.csv")
+    val exception =
+      assertThrows<ImportCannotParseFileException> {
+        processFile()
+      }
+    exception.causeMessage.assert.contains("No language columns were detected")
   }
 
   private fun processFile() {

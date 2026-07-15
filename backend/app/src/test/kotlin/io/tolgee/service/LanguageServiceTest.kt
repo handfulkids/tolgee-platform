@@ -30,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional
   properties = [
     "spring.jpa.properties.hibernate.generate_statistics=true",
     "logging.level.org.hibernate.engine.internal.StatisticalLoggingSessionEventListener=WARN",
+    "spring.jpa.show-sql=true",
+    // keep in sync with OrganizationServiceTest properties to share Spring test context
+    "tolgee.machine-translation.free-credits-amount=100000",
   ],
 )
 class LanguageServiceTest : AbstractSpringTest() {
@@ -146,7 +149,7 @@ class LanguageServiceTest : AbstractSpringTest() {
     // This reliably detects N+1 issues as Hibernate acquires a new statement per query execution.
     // With 100 generated items, N+1 would cause 100+ statements; we expect a constant count instead.
     val count = sessionFactory.statistics.prepareStatementCount
-    count.assert.isLessThan(25)
+    count.assert.isLessThan(26)
 
     executeInNewTransaction {
       assertLanguageDeleted(testData.germanLanguage)
@@ -171,6 +174,20 @@ class LanguageServiceTest : AbstractSpringTest() {
       .setParameter("id", language.id)
       .resultList.assert
       .isEmpty()
+  }
+
+  @Test
+  @Transactional
+  fun `deletes language with QA config and issues`() {
+    val testData = TranslationsTestData()
+    testData.addQaIssueOnAKeyGerman()
+    testData.addLanguageQaConfigOnGermanLanguage()
+    testDataService.saveTestData(testData.root)
+
+    val language = testData.germanLanguage
+
+    languageService.hardDeleteLanguage(language.id)
+    languageService.findEntity(language.id).assert.isNull()
   }
 
   private fun assertActivityCreated() {

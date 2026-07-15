@@ -13,7 +13,7 @@ import {
 } from 'react-query';
 
 import { paths } from '../apiSchema.generated';
-import { paths as billingPaths } from '../billingApiSchema.generated';
+import { paths as billingPaths } from 'tg.service/billingApiSchema.generated';
 import { ApiError } from './ApiError';
 
 import { RequestOptions } from './ApiHttpService';
@@ -126,7 +126,12 @@ export const useApiQuery = <
   const { url, method, fetchOptions, options, ...request } = props;
 
   return useQuery<ResponseContent<Url, Method, Paths>, ApiError>(
-    [url, (request as any)?.path, (request as any)?.query],
+    [
+      url,
+      (request as any)?.path,
+      (request as any)?.query,
+      (request as any)?.content,
+    ],
     ({ signal }) =>
       apiSchemaHttpService.schemaRequest<Url, Method, Paths>(url, method, {
         signal,
@@ -291,6 +296,13 @@ export const useBillingApiQuery = <
 >(
   props: QueryProps<Url, Method, billingPaths>
 ) => useApiQuery<Url, Method, billingPaths>(props);
+
+export const useBillingApiInfiniteQuery = <
+  Url extends keyof billingPaths,
+  Method extends keyof billingPaths[Url]
+>(
+  props: InfiniteQueryProps<Url, Method, billingPaths>
+) => useApiInfiniteQuery<Url, Method, billingPaths>(props);
 
 export const useBillingApiMutation = <
   Url extends keyof billingPaths,

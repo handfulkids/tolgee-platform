@@ -1,4 +1,4 @@
-import { styled, useTheme } from '@mui/material';
+import { Box, styled, useTheme } from '@mui/material';
 import { useFormikContext } from 'formik';
 import { useTranslate } from '@tolgee/react';
 
@@ -12,7 +12,9 @@ import { Tag } from '../Tags/Tag';
 import { RequiredField } from 'tg.component/common/form/RequiredField';
 import { LabelHint } from 'tg.component/common/LabelHint';
 import { PluralFormCheckbox } from 'tg.component/common/form/PluralFormCheckbox';
+import { CharLimitCheckbox } from 'tg.component/common/form/CharLimitCheckbox';
 import { useProject } from 'tg.hooks/useProject';
+import { KeyNameWhitespaceWarning } from '../KeyNameWhitespaceWarning';
 import clsx from 'clsx';
 
 const StyledSection = styled('div')``;
@@ -35,7 +37,6 @@ const StyledTags = styled('div')`
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  overflow: hidden;
 
   & > * {
     margin: 0px 3px 3px 0px;
@@ -71,11 +72,18 @@ export const KeyGeneral = () => {
                   run: () => (submitForm(), true),
                 },
               ]}
-              mode="plain"
+              mode="keyName"
               minHeight="unset"
             />
           </EditorWrapper>
-          <FieldError error={errors.name} />
+          {errors.name ? (
+            <FieldError error={errors.name} />
+          ) : (
+            <KeyNameWhitespaceWarning
+              value={values.name}
+              onTrim={() => setFieldValue('name', values.name.trim())}
+            />
+          )}
         </StyledSection>
         {project.useNamespaces && (
           <StyledSection>
@@ -154,10 +162,14 @@ export const KeyGeneral = () => {
         <FieldError error={errors.tags} />
       </StyledSection>
 
-      <PluralFormCheckbox
-        pluralParameterName="pluralParameter"
-        isPluralName="isPlural"
-      />
+      <Box display="flex" gap={4} alignItems="flex-start">
+        <PluralFormCheckbox
+          pluralParameterName="pluralParameter"
+          isPluralName="isPlural"
+        />
+
+        <CharLimitCheckbox fieldName="maxCharLimit" />
+      </Box>
     </>
   );
 };

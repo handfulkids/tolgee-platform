@@ -8,8 +8,8 @@ import io.tolgee.formats.xliff.`in`.parser.XliffParser
 import io.tolgee.model.dataImport.issues.issueTypes.FileIssueType
 import io.tolgee.model.dataImport.issues.paramTypes.FileIssueParamType
 import io.tolgee.testing.assert
-import io.tolgee.unit.formats.PlaceholderConversionTestHelper
 import io.tolgee.util.FileProcessorContextMockUtil
+import io.tolgee.util.XmlSecurity
 import io.tolgee.util.assertKey
 import io.tolgee.util.assertLanguagesCount
 import io.tolgee.util.assertSingle
@@ -21,16 +21,15 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import javax.xml.stream.XMLEventReader
-import javax.xml.stream.XMLInputFactory
 
 class Xliff12FileProcessorTest {
-  private val inputFactory: XMLInputFactory = XMLInputFactory.newDefaultFactory()
+  private val inputFactory = XmlSecurity.newSecureXmlInputFactory()
 
   private lateinit var xmlStreamReader: XMLEventReader
 
   private val xmlEventReader: XMLEventReader
     get() {
-      val inputFactory: XMLInputFactory = XMLInputFactory.newDefaultFactory()
+      val inputFactory = XmlSecurity.newSecureXmlInputFactory()
       return inputFactory.createXMLEventReader(mockUtil.importFileDto.data.inputStream())
     }
 
@@ -68,13 +67,13 @@ class Xliff12FileProcessorTest {
     assertThat(keyMeta.codeReferences).hasSize(1)
     assertThat(keyMeta.codeReferences[0].path).isEqualTo("../src/ui/components/VPNAboutUs.qml")
     assertThat(mockUtil.fileProcessorContext.translations["systray.quit"]!![0].text).isEqualTo(
-      "<x equiv-text=\"{{ favorite ?  'Remove from favorites' :" +
-        " 'Add to favorites'}}\" id=\"INTERPOLATION\" />",
+      "<x id=\"INTERPOLATION\" equiv-text=\"{{ favorite ?  'Remove from favorites' :" +
+        " 'Add to favorites'}}\" />",
     )
     assertThat(mockUtil.fileProcessorContext.translations["systray.quit"]!![1].text)
       .isEqualTo(
-        "<x equiv-text=\"{{ favorite ?  'Remove from favorites' :" +
-          " 'Add to favorites'}}\" id=\"INTERPOLATION\" />",
+        "<x id=\"INTERPOLATION\" equiv-text=\"{{ favorite ?  'Remove from favorites' :" +
+          " 'Add to favorites'}}\" />",
       )
   }
 
@@ -220,27 +219,6 @@ class Xliff12FileProcessorTest {
       custom.assert.isNull()
       description.assert.isNull()
     }
-  }
-
-  @Test
-  fun `placeholder conversion setting application works`() {
-    PlaceholderConversionTestHelper.testFile(
-      "en.json",
-      "src/test/resources/import/json/java.json",
-      assertBeforeSettingsApplication =
-        listOf(
-          "%D this is java {1, number}",
-          "%D this is java",
-        ),
-      assertAfterDisablingConversion =
-        listOf(
-          "%D this is java %d",
-        ),
-      assertAfterReEnablingConversion =
-        listOf(
-          "%D this is java {1, number}",
-        ),
-    )
   }
 
   @Test

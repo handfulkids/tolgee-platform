@@ -59,9 +59,9 @@ class EmailVerificationService(
       userAccountService.saveAndFlush(userAccount)
 
       if (newEmail != null) {
-        emailVerificationSender.sendEmailVerification(userAccount.id, newEmail, resultCallbackUrl, code, false)
+        emailVerificationSender.sendEmailVerification(userAccount, newEmail, resultCallbackUrl, code, false)
       } else {
-        emailVerificationSender.sendEmailVerification(userAccount.id, userAccount.username, resultCallbackUrl, code)
+        emailVerificationSender.sendEmailVerification(userAccount, userAccount.username, resultCallbackUrl, code)
       }
       return emailVerification
     }
@@ -79,13 +79,14 @@ class EmailVerificationService(
       throw BadRequestException(Message.EMAIL_ALREADY_VERIFIED)
     }
 
-    val email = newEmail ?: getEmail(userAccount)
+    val effectiveNewEmail = newEmail ?: userAccount.emailVerification?.newEmail
+    val email = effectiveNewEmail ?: userAccount.username
     val policy = rateLimitService.getEmailVerificationIpRateLimitPolicy(request, email)
 
     if (policy != null) {
       rateLimitService.consumeBucket(policy)
     }
-    createForUser(userAccount, callbackUrl, newEmail)
+    createForUser(userAccount, callbackUrl, effectiveNewEmail)
   }
 
   fun getEmail(userAccount: UserAccount): String {
@@ -146,7 +147,7 @@ class EmailVerificationService(
     user: UserAccount,
   ) {
     newEmail?.let {
-      user.username = newEmail
+      user.username = it.lowercase()
     }
   }
 

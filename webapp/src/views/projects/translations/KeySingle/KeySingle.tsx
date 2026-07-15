@@ -1,4 +1,5 @@
 import { styled } from '@mui/material';
+import { KeyName } from 'tg.component/KeyName/KeyName';
 import { T, useTranslate } from '@tolgee/react';
 import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
@@ -38,7 +39,10 @@ type Props = {
   keyId?: number;
 };
 
-export const KeySingle: React.FC<Props> = ({ keyName, keyId }) => {
+export const KeySingle: React.FC<React.PropsWithChildren<Props>> = ({
+  keyName,
+  keyId,
+}) => {
   const queryClient = useQueryClient();
   const project = useProject();
   const { t } = useTranslate();
@@ -97,7 +101,7 @@ export const KeySingle: React.FC<Props> = ({ keyName, keyId }) => {
         ],
         [
           keyExists ? (
-            translation!.keyName
+            <KeyName name={translation!.keyName} />
           ) : (
             <T keyName="translation_single_create_title" />
           ),
