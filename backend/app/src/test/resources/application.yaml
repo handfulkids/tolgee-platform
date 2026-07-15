@@ -101,6 +101,7 @@ tolgee:
     old-job-cleanup-enabled: false
   front-end-url: https://dummy-url.com
   ee:
+    license-server: http://localhost:8080
     scheduled-reporting-enabled: false
 #logging:
 #  level:

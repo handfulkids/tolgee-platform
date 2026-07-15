@@ -88,6 +88,7 @@ tolgee:
     enabled: false
     server: http://localhost:8080
   ee:
+    license-server: http://localhost:8080
     scheduled-reporting-enabled: false
 
 management:

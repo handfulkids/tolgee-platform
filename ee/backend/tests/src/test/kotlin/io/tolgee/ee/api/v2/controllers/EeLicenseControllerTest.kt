@@ -3,11 +3,15 @@ package io.tolgee.ee.api.v2.controllers
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.tolgee.api.SubscriptionStatus
 import io.tolgee.constants.Feature
+import io.tolgee.constants.Message
 import io.tolgee.ee.EeLicensingMockRequestUtil
+import io.tolgee.ee.EeProperties
 import io.tolgee.ee.model.EeSubscription
 import io.tolgee.ee.repository.EeSubscriptionRepository
 import io.tolgee.ee.service.eeSubscription.EeSubscriptionServiceImpl
 import io.tolgee.fixtures.andAssertThatJson
+import io.tolgee.fixtures.andHasErrorMessage
+import io.tolgee.fixtures.andIsBadRequest
 import io.tolgee.fixtures.andIsOk
 import io.tolgee.fixtures.andPrettyPrint
 import io.tolgee.fixtures.node
@@ -52,6 +56,9 @@ class EeLicenseControllerTest : AuthorizedControllerTest() {
   @Autowired
   private lateinit var eeSubscriptionRepository: EeSubscriptionRepository
 
+  @Autowired
+  private lateinit var eeProperties: EeProperties
+
   @Test
   fun `it set's license key`() {
     eeLicensingMockRequestUtil.mock {
@@ -92,6 +99,20 @@ class EeLicenseControllerTest : AuthorizedControllerTest() {
   }
 
   private fun getSubscription() = eeSubscriptionService.findSubscriptionEntity()
+
+  @Test
+  fun `license key setting is disabled without remote license server`() {
+    val originalServer = eeProperties.licenseServer
+    eeProperties.licenseServer = ""
+
+    try {
+      performAuthPut("/v2/ee-license/set-license-key", mapOf("licenseKey" to "mock-mock"))
+        .andIsBadRequest
+        .andHasErrorMessage(Message.FEATURE_NOT_ENABLED)
+    } finally {
+      eeProperties.licenseServer = originalServer
+    }
+  }
 
   @Test
   fun `set license key operation is not sensitive for non-breaking API change`() {

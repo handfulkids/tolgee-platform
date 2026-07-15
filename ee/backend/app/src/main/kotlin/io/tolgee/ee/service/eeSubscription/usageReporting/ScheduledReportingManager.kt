@@ -28,6 +28,10 @@ class ScheduledReportingManager(
       logger.info("Scheduled reporting is disabled, skipping scheduling")
       return
     }
+    if (!eeProperties.isRemoteLicensingEnabled()) {
+      logger.info("Remote license reporting is disabled, skipping scheduling")
+      return
+    }
     scheduleTask()
     logger.debug("Scheduled reporting task")
   }

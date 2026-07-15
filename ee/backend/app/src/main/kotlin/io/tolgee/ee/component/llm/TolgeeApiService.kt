@@ -7,8 +7,10 @@ import io.tolgee.constants.Message
 import io.tolgee.dtos.LlmParams
 import io.tolgee.dtos.PromptResult
 import io.tolgee.ee.service.eeSubscription.EeSubscriptionServiceImpl
+import io.tolgee.exceptions.BadRequestException
 import io.tolgee.exceptions.FailedDependencyException
 import io.tolgee.util.Logging
+import io.tolgee.util.isTolgeeOwnedUrl
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.context.annotation.Scope
 import org.springframework.http.HttpEntity
@@ -31,6 +33,9 @@ class TolgeeApiService(
     config: LlmProviderInterface,
     restTemplate: RestTemplate,
   ): PromptResult {
+    if (config.apiUrl.isTolgeeOwnedUrl()) {
+      throw BadRequestException(Message.FEATURE_NOT_ENABLED)
+    }
     val licenseKey =
       subscriptionService.findSubscriptionDto()?.licenseKey ?: throw IllegalStateException("Not Subscribed")
     val headers = HttpHeaders()

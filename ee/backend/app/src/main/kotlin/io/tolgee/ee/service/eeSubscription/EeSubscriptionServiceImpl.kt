@@ -60,7 +60,11 @@ class EeSubscriptionServiceImpl(
   }
 
   override fun getLicensingUrl(): String? {
-    return eeProperties.licenseServer
+    return eeProperties.licenseServer.takeIf { eeProperties.isRemoteLicensingEnabled() }
+  }
+
+  fun isRemoteLicensingConfigured(): Boolean {
+    return eeProperties.isRemoteLicensingEnabled()
   }
 
   fun findSubscriptionEntity(): EeSubscription? {
@@ -114,6 +118,10 @@ class EeSubscriptionServiceImpl(
   @EventListener(ApplicationReadyEvent::class)
   @Transactional
   fun scheduleSubscriptionChecking() {
+    if (!isRemoteLicensingConfigured()) {
+      logger.debug("Remote EE subscription checking disabled.")
+      return
+    }
     logger.debug("Scheduling ee subscription checking with period ${eeProperties.checkPeriodInMs} ms.")
     schedulingManager.scheduleWithFixedDelay({
       refreshSubscription()
@@ -122,6 +130,9 @@ class EeSubscriptionServiceImpl(
 
   @CacheEvict(Caches.Companion.EE_SUBSCRIPTION, key = "1")
   fun refreshSubscription() {
+    if (!isRemoteLicensingConfigured()) {
+      return
+    }
     logger.debug("Refreshing local ee subscription, evicting cache.")
     val subscription = this.findSubscriptionEntity()
     if (subscription != null) {
@@ -207,6 +218,9 @@ class EeSubscriptionServiceImpl(
   }
 
   fun reportError(error: String) {
+    if (!isRemoteLicensingConfigured()) {
+      return
+    }
     try {
       findSubscriptionEntity()?.let {
         client.reportErrorRemote(error, it.licenseKey)

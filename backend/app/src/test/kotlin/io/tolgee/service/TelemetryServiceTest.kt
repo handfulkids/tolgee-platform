@@ -39,6 +39,7 @@ class TelemetryServiceTest : AbstractSpringTest() {
   @AfterEach
   fun clean() {
     telemetryProperties.enabled = false
+    telemetryProperties.server = ""
   }
 
   @Test
@@ -60,8 +61,28 @@ class TelemetryServiceTest : AbstractSpringTest() {
   }
 
   @Test
+  fun `doesn't report to tolgee hosted telemetry endpoint`() {
+    telemetryProperties.enabled = true
+    telemetryProperties.server = "https://app.tolgee.io"
+    Mockito.reset(restTemplate)
+    mockHttpRequest(restTemplate) {
+      whenReq {
+        url = { it.contains("/v2/public/telemetry") }
+        method = { it == HttpMethod.POST }
+      }
+      thenAnswer { }
+      verify {
+        Thread.sleep(500)
+        this.captor.allValues.assert
+          .hasSize(0)
+      }
+    }
+  }
+
+  @Test
   fun `reports when enabled`() {
     telemetryProperties.enabled = true
+    telemetryProperties.server = "http://localhost:8080"
     val testData =
       BaseTestData().apply {
         this.root.addProject { name = "bbbb" }.build {
