@@ -1,5 +1,7 @@
 package io.tolgee.unit
 
+import io.tolgee.api.EeSubscriptionDto
+import io.tolgee.api.EeSubscriptionProvider
 import io.tolgee.configuration.tolgee.machineTranslation.LlmProperties
 import io.tolgee.configuration.tolgee.machineTranslation.LlmProperties.LlmProvider
 import io.tolgee.configuration.tolgee.machineTranslation.LlmProperties.LlmProviderDefaults
@@ -8,10 +10,44 @@ import io.tolgee.model.enums.LlmProviderType
 import io.tolgee.service.LlmPropertiesService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 
 class LlmPropertiesServiceMergeTest {
-  private fun createService(props: LlmProperties): LlmPropertiesService {
-    return LlmPropertiesService(props, null)
+  private fun createService(
+    props: LlmProperties,
+    subscriptionProvider: EeSubscriptionProvider? = null,
+  ): LlmPropertiesService {
+    return LlmPropertiesService(props, subscriptionProvider)
+  }
+
+  private fun activeSubscriptionProvider(licensingUrl: String?): EeSubscriptionProvider {
+    val subscription = mock<EeSubscriptionDto> { on { licenseKey } doReturn "license" }
+    return mock {
+      on { findSubscriptionDto() } doReturn subscription
+      on { getLicensingUrl() } doReturn licensingUrl
+    }
+  }
+
+  @Test
+  fun `active subscription without licensing URL does not add Tolgee provider`() {
+    val subscriptionProvider = activeSubscriptionProvider(licensingUrl = null)
+    val service = createService(LlmProperties(), subscriptionProvider)
+
+    assertThat(service.getProviders()).isEmpty()
+    assertThat(service.isEnabled()).isFalse()
+  }
+
+  @Test
+  fun `active subscription with licensing URL adds Tolgee provider`() {
+    val subscriptionProvider = activeSubscriptionProvider(licensingUrl = "https://license.example.com")
+
+    val result = createService(LlmProperties(), subscriptionProvider).getProviders()
+
+    assertThat(result).hasSize(1)
+    val provider = result.single()
+    assertThat(provider.type).isEqualTo(LlmProviderType.TOLGEE)
+    assertThat(provider.apiUrl).isEqualTo("https://license.example.com")
   }
 
   @Test

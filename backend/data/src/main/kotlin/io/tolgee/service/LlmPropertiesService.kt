@@ -4,7 +4,6 @@ import io.tolgee.api.EeSubscriptionProvider
 import io.tolgee.configuration.tolgee.machineTranslation.LlmProperties
 import io.tolgee.configuration.tolgee.machineTranslation.LlmProperties.LlmProvider
 import io.tolgee.configuration.tolgee.machineTranslation.LlmProperties.LlmProviderDefaults
-import io.tolgee.exceptions.InvalidStateException
 import io.tolgee.model.enums.LlmProviderType
 import org.springframework.stereotype.Service
 
@@ -27,14 +26,15 @@ class LlmPropertiesService(
 
   fun getProviders(): List<LlmProvider> {
     val result = getMergedProviders().toMutableList()
-    if (subscriptionActive()) {
+    val licensingUrl = eeSubscriptionProvider?.getLicensingUrl()
+    if (subscriptionActive() && licensingUrl != null) {
       val hasTolgeeConfig = result.find { it.type == LlmProviderType.TOLGEE } != null
       if (!hasTolgeeConfig) {
         result.add(
           LlmProvider(
             type = LlmProviderType.TOLGEE,
             name = "Tolgee",
-            apiUrl = eeSubscriptionProvider?.getLicensingUrl() ?: throw InvalidStateException(),
+            apiUrl = licensingUrl,
           ),
         )
       }
