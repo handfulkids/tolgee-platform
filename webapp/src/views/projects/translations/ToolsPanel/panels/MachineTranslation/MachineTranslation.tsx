@@ -3,6 +3,8 @@ import { Button, styled } from '@mui/material';
 import { T, useTranslate } from '@tolgee/react';
 import { LoadingSkeletonFadingIn } from 'tg.component/LoadingSkeleton';
 import { GoToBilling } from 'tg.component/GoToBilling';
+import { AdminAccessAlert } from 'tg.component/common/AdminAccessAlert';
+import { useIsAdminAccess } from 'tg.hooks/useIsAdminAccess';
 import { stringHash } from 'tg.fixtures/stringHash';
 
 import { useMTStreamed } from './useMTStreamed';
@@ -44,7 +46,9 @@ const OutOfCreditsWrapper = styled('div')`
   border-radius: 8px;
 `;
 
-export const MachineTranslation: React.FC<PanelContentProps> = ({
+export const MachineTranslation: React.FC<
+  React.PropsWithChildren<PanelContentProps>
+> = ({
   keyData,
   language,
   project,
@@ -55,6 +59,8 @@ export const MachineTranslation: React.FC<PanelContentProps> = ({
   const { t } = useTranslate();
   const { increaseCreditPlanLimitErrors, increaseCreditSpendingLimitErrors } =
     useGlobalActions();
+
+  const isAdminAccess = useIsAdminAccess(project.computedPermission);
 
   const deps = {
     keyId: keyData.keyId,
@@ -128,6 +134,9 @@ export const MachineTranslation: React.FC<PanelContentProps> = ({
 
   return (
     <StyledContainer>
+      {isAdminAccess && (
+        <AdminAccessAlert sx={{ m: 1 }} data-cy="mt-admin-access-info" />
+      )}
       {outOfPlanCredits ? (
         <OutOfCreditsWrapper>
           <StyledError

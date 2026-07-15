@@ -7,6 +7,8 @@ import io.tolgee.component.CurrentDateProvider
 import io.tolgee.component.SchedulingManager
 import io.tolgee.component.fileStorage.FileStorage
 import io.tolgee.component.machineTranslation.MtServiceManager
+import io.tolgee.config.TestEmailConfiguration
+import io.tolgee.config.TestPostHogConfiguration
 import io.tolgee.configuration.tolgee.AuthenticationProperties
 import io.tolgee.configuration.tolgee.InternalProperties
 import io.tolgee.configuration.tolgee.TolgeeProperties
@@ -51,6 +53,7 @@ import io.tolgee.service.security.UserAccountService
 import io.tolgee.service.security.UserPreferencesService
 import io.tolgee.service.translation.TranslationCommentService
 import io.tolgee.service.translation.TranslationService
+import io.tolgee.service.translationMemory.TranslationMemoryManagementService
 import io.tolgee.testing.AbstractTransactionalTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
@@ -58,6 +61,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.cache.CacheManager
 import org.springframework.context.ApplicationContext
+import org.springframework.context.annotation.Import
 import org.springframework.test.web.servlet.ResultActions
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
@@ -68,6 +72,7 @@ import java.util.Date
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @SpringBootTest
+@Import(TestEmailConfiguration::class, TestPostHogConfiguration::class)
 abstract class AbstractSpringTest : AbstractTransactionalTest() {
   @Autowired
   protected lateinit var dbPopulator: DbPopulatorReal
@@ -225,6 +230,9 @@ abstract class AbstractSpringTest : AbstractTransactionalTest() {
 
   @Autowired
   lateinit var schedulingManager: SchedulingManager
+
+  @Autowired
+  lateinit var translationMemoryManagementService: TranslationMemoryManagementService
 
   @BeforeEach
   fun clearCaches() {

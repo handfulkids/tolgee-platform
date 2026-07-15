@@ -39,10 +39,6 @@ apply plugin: 'io.spring.dependency-management'
 apply plugin: "org.jetbrains.kotlin.plugin.jpa"
 apply plugin: "kotlin-allopen"
 
-repositories {
-    mavenCentral()
-}
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -111,6 +107,7 @@ dependencies {
      * DATA MODULE
      */
     implementation project(':data')
+    implementation libs.postHog
 
     /**
      * MCP SDK (for AbstractMcpTest)
@@ -129,6 +126,7 @@ dependencies {
      * Google translation API
      */
     implementation platform(libs.googleCloud)
+    implementation platform(libs.grpcBom)
     implementation 'com.google.cloud:google-cloud-translate'
 
     /**
@@ -137,7 +135,7 @@ dependencies {
     implementation libs.amazonTranslate
 }
 
-test {
+tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = "4096m"
 }
@@ -157,6 +155,6 @@ dependencyManagement {
     }
 }
 
-jar {
+tasks.named('jar', Jar) {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 }

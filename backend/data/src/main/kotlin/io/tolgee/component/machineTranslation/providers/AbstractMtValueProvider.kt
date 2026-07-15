@@ -4,8 +4,13 @@ import io.tolgee.component.machineTranslation.MtValueProvider
 import io.tolgee.component.machineTranslation.metadata.MtMetadata
 
 abstract class AbstractMtValueProvider : MtValueProvider {
+  protected open val placeholderProtector: MtPlaceholderProtector = NoopMtPlaceholderProtector
+
   private val String.toSuitableTag: String?
     get() = getSuitableTag(this)
+
+  private val String.toSuitableSourceTag: String?
+    get() = getSuitableSourceTag(this)
 
   fun isFormalitySupported(tag: String): Boolean {
     val suitableTag = getSuitableTag(tag) ?: return false
@@ -13,7 +18,7 @@ abstract class AbstractMtValueProvider : MtValueProvider {
   }
 
   override fun translate(params: ProviderTranslateParams): MtValueProvider.MtResult {
-    val suitableSourceTag = params.sourceLanguageTag.toSuitableTag
+    val suitableSourceTag = params.sourceLanguageTag.toSuitableSourceTag
     val suitableTargetTag = params.targetLanguageTag.toSuitableTag
 
     if (suitableSourceTag.isNullOrEmpty() || suitableTargetTag.isNullOrEmpty()) {
@@ -30,12 +35,17 @@ abstract class AbstractMtValueProvider : MtValueProvider {
       )
     }
 
-    return translateViaProvider(
-      params.apply {
-        sourceLanguageTag = suitableSourceTag
-        targetLanguageTag = suitableTargetTag
-      },
-    )
+    val preparedParams =
+      params
+        .copy(text = placeholderProtector.protect(params.text))
+        .apply {
+          sourceLanguageTag = suitableSourceTag
+          targetLanguageTag = suitableTargetTag
+        }
+
+    return translateViaProvider(preparedParams).also {
+      it.translated = it.translated?.let(placeholderProtector::restore)
+    }
   }
 
   override fun getMetadata(

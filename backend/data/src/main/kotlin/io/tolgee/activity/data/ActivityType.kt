@@ -6,6 +6,7 @@ import io.tolgee.batch.BranchMergeActivityParamsProvider
 import io.tolgee.model.EntityWithId
 import io.tolgee.model.Language
 import io.tolgee.model.glossary.Glossary
+import io.tolgee.model.translationMemory.TranslationMemory
 import kotlin.reflect.KClass
 
 enum class ActivityType(
@@ -32,6 +33,7 @@ enum class ActivityType(
   SCREENSHOT_ADD,
   KEY_TAGS_EDIT,
   KEY_NAME_EDIT,
+  KEY_CHARACTER_LIMIT_EDIT,
   KEY_DELETE(true),
   KEY_SOFT_DELETE(true),
   KEY_RESTORE,
@@ -91,6 +93,17 @@ enum class ActivityType(
   GLOSSARY_TERM_UPDATE,
   GLOSSARY_TERM_DELETE(onlyCountsInList = true),
   GLOSSARY_TERM_TRANSLATION_UPDATE,
+  TRANSLATION_MEMORY_CREATE,
+  TRANSLATION_MEMORY_UPDATE,
+  TRANSLATION_MEMORY_DELETE(restrictEntitiesInList = arrayOf(TranslationMemory::class)),
+  TRANSLATION_MEMORY_ASSIGN_PROJECT,
+  TRANSLATION_MEMORY_UNASSIGN_PROJECT,
+  TRANSLATION_MEMORY_UPDATE_PROJECT_CONFIG,
+  TRANSLATION_MEMORY_ENTRY_CREATE,
+  TRANSLATION_MEMORY_ENTRY_UPDATE,
+  TRANSLATION_MEMORY_ENTRY_DELETE(onlyCountsInList = true),
+  TRANSLATION_MEMORY_IMPORT(onlyCountsInList = true),
+  TRANSLATION_MEMORY_COPY_FROM_PROJECT(onlyCountsInList = true),
   TRANSLATION_LABELS_EDIT,
   TRANSLATION_LABEL_ASSIGN,
   TRANSLATION_LABEL_CREATE,
@@ -110,4 +123,6 @@ enum class ActivityType(
   BRANCH_DELETE,
   BRANCH_PROTECTION_CHANGE,
   BRANCH_MERGE(onlyCountsInList = true, paramsProvider = BranchMergeActivityParamsProvider::class),
+  QA_ISSUE_IGNORE,
+  QA_ISSUE_UNIGNORE,
 }

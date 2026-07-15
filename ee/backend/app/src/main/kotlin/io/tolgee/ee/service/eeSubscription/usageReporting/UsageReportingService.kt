@@ -38,6 +38,9 @@ class UsageReportingService(
     keys: Long? = null,
     seats: Long? = null,
   ) {
+    if (!eeSubscriptionServiceImpl.isRemoteLicensingConfigured()) {
+      return
+    }
     if (isReportingTooSoon()) {
       usageToReportService.storeCurrentUsage(keys = keys, seats = seats)
       return
@@ -57,6 +60,9 @@ class UsageReportingService(
   @Transactional
   fun reportIfNeeded() {
     try {
+      if (!eeSubscriptionServiceImpl.isRemoteLicensingConfigured()) {
+        return
+      }
       lockingProvider.withLocking("report_usage_periodically") {
         val subscription = eeSubscriptionServiceImpl.findSubscriptionDto() ?: return@withLocking
         val usageToReport = usageToReportService.findOrCreateUsageToReport()

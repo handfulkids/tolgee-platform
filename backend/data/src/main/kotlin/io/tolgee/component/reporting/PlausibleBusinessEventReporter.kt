@@ -2,6 +2,7 @@ package io.tolgee.component.reporting
 
 import io.tolgee.configuration.tolgee.PlausibleProperties
 import io.tolgee.util.RequestIpProvider
+import io.tolgee.util.isTolgeeOwnedUrl
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Lazy
@@ -39,6 +40,8 @@ class PlausibleBusinessEventReporter(
   @EventListener
   fun capture(data: OnBusinessEventToCaptureEvent) {
     if (plausibleProperties.domain == null) return
+    if (plausibleProperties.url.isBlank()) return
+    if (plausibleProperties.url.isTolgeeOwnedUrl()) return
     if (data.eventName !in ALLOWED_EVENTS) return
     val userInfo = getUserInfo() ?: return
     selfProxied.captureAsync(data, userInfo)

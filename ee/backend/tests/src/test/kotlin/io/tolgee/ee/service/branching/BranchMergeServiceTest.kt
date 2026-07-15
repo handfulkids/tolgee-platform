@@ -6,6 +6,7 @@ import io.tolgee.dtos.request.LanguageRequest
 import io.tolgee.dtos.request.key.CreateKeyDto
 import io.tolgee.ee.repository.EeSubscriptionRepository
 import io.tolgee.ee.repository.TaskRepository
+import io.tolgee.ee.repository.branching.BranchMergeRepository
 import io.tolgee.ee.repository.branching.BranchRepository
 import io.tolgee.ee.service.LabelServiceImpl
 import io.tolgee.ee.service.eeSubscription.EeSubscriptionServiceImpl
@@ -44,6 +45,9 @@ class BranchMergeServiceTest : AbstractSpringTest() {
 
   @Autowired
   lateinit var branchRepository: BranchRepository
+
+  @Autowired
+  lateinit var branchMergeRepository: BranchMergeRepository
 
   @Autowired
   lateinit var keyRepository: KeyRepository
@@ -216,14 +220,18 @@ class BranchMergeServiceTest : AbstractSpringTest() {
       .findKey(testData.mainKeyToDelete.name)
       .assert
       .isNull()
+
+    executeInNewTransaction {
+      val finalized = branchMergeRepository.findByIdOrNull(merge.id)!!
+      finalized.mergedAt.assert.isNotNull()
+      finalized.changes.assert.hasSize(0)
+    }
   }
 
   @Test
   fun `apply merge - keeps branch and resets snapshot`() {
-    executeInNewTransaction {
-      val merge = prepareMergeScenario()
-      branchService.applyMerge(testData.project.id, merge.id, false)
-    }
+    val merge = prepareMergeScenario()
+    branchService.applyMerge(testData.project.id, merge.id, false)
 
     val refreshedBranch = testData.featureBranch.refresh()!!
     refreshedBranch.deletedAt.assert.isNull()
@@ -561,6 +569,12 @@ class BranchMergeServiceTest : AbstractSpringTest() {
     createFeatureOnlyKey()
     deleteFeatureKey()
     updateFeatureKey()
+    waitForNotThrowing(timeout = 5000, pollTime = 100) {
+      testData.featureBranch
+        .refresh()!!
+        .revision.assert
+        .isEqualTo(4)
+    }
     return dryRunFeatureBranchMerge()
   }
 

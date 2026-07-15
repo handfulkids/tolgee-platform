@@ -35,9 +35,12 @@ type ControlsProps = {
   translation: TranslationViewModel | undefined;
   languageId: number;
   value: TolgeeFormat;
+  overCharLimit?: boolean;
 };
 
-export const ControlsEditorMain: React.FC<ControlsProps> = ({
+export const ControlsEditorMain: React.FC<
+  React.PropsWithChildren<ControlsProps>
+> = ({
   onSave,
   onCancel,
   className,
@@ -46,6 +49,7 @@ export const ControlsEditorMain: React.FC<ControlsProps> = ({
   translation,
   languageId,
   value,
+  overCharLimit,
 }: ControlsProps) => {
   const project = useProject();
 
@@ -57,6 +61,7 @@ export const ControlsEditorMain: React.FC<ControlsProps> = ({
     currentTask,
     project,
     value,
+    overCharLimit,
   });
 
   const isEditLoading = useTranslationsSelector((c) => c.isEditLoading);

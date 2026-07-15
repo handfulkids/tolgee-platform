@@ -1,6 +1,5 @@
 package io.tolgee.api.v2.controllers
 
-import io.tolgee.config.TestEmailConfiguration
 import io.tolgee.configuration.tolgee.TolgeeProperties
 import io.tolgee.development.testDataBuilder.data.SensitiveOperationProtectionTestData
 import io.tolgee.development.testDataBuilder.data.UserDeletionTestData
@@ -14,6 +13,7 @@ import io.tolgee.fixtures.andIsNoContent
 import io.tolgee.fixtures.andIsOk
 import io.tolgee.fixtures.node
 import io.tolgee.fixtures.satisfies
+import io.tolgee.fixtures.waitForNotThrowing
 import io.tolgee.model.UserAccount
 import io.tolgee.model.notifications.NotificationType.PASSWORD_CHANGED
 import io.tolgee.testing.AuthorizedControllerTest
@@ -26,13 +26,11 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
 
 @ContextRecreatingTest
 @SpringBootTest
-@Import(TestEmailConfiguration::class)
 class V2UserControllerTest : AuthorizedControllerTest() {
   @Autowired
   override lateinit var tolgeeProperties: TolgeeProperties
@@ -63,6 +61,19 @@ class V2UserControllerTest : AuthorizedControllerTest() {
     performAuthPut("/v2/user", requestDTO).andExpect(MockMvcResultMatchers.status().isOk)
     val fromDb = userAccountService.findActive(requestDTO.email)
     Assertions.assertThat(fromDb!!.name).isEqualTo(requestDTO.name)
+  }
+
+  @Test
+  fun `it stores the email lowercased on update`() {
+    val requestDTO =
+      UserUpdateRequestDto(
+        email = "Ben.New@Example.COM",
+        name = "Ben's new name",
+        currentPassword = initialPassword,
+      )
+    performAuthPut("/v2/user", requestDTO).andIsOk
+    assertThat(userAccountService.findActive("ben.new@example.com")!!.username)
+      .isEqualTo("ben.new@example.com")
   }
 
   @Test
@@ -147,7 +158,9 @@ class V2UserControllerTest : AuthorizedControllerTest() {
       )
     performAuthPut("/v2/user", requestDTO).andIsOk
 
-    emailTestUtil.verifyEmailSent()
+    waitForNotThrowing(timeout = 2000, pollTime = 25) {
+      emailTestUtil.verifyEmailSent()
+    }
     assertThat(emailTestUtil.messageContents.single())
       .contains(tolgeeProperties.frontEndUrl.toString())
 

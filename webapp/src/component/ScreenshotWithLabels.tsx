@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 import { Tooltip, useTheme } from '@mui/material';
+import { KeyName } from 'tg.component/KeyName/KeyName';
 import { CSSProperties, useEffect, useState } from 'react';
 import { useImagePreload } from 'tg.fixtures/useImagePreload';
 
@@ -30,7 +31,7 @@ type Props = {
   onSrcExpired: () => void;
 };
 
-export const ScreenshotWithLabels: React.FC<Props> = ({
+export const ScreenshotWithLabels: React.FC<React.PropsWithChildren<Props>> = ({
   screenshot,
   showTooltips,
   objectFit = 'contain',
@@ -113,7 +114,11 @@ export const ScreenshotWithLabels: React.FC<Props> = ({
                 );
                 if (showTooltips) {
                   return (
-                    <Tooltip key={i} title={key.keyName} placement="right">
+                    <Tooltip
+                      key={i}
+                      title={<KeyName name={key.keyName} />}
+                      placement="right"
+                    >
                       {rectangle}
                     </Tooltip>
                   );

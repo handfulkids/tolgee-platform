@@ -24,7 +24,9 @@ import { ImportSettingsPanel } from './component/ImportSettingsPanel';
 import { TranslatedWarningBox } from 'tg.translationTools/TranslatedWarningBox';
 import { useBranchEditAccess } from 'tg.views/projects/translations/context/services/useBranchEditAccess';
 
-export const ImportView: FunctionComponent = () => {
+export const ImportView: FunctionComponent<
+  React.PropsWithChildren<unknown>
+> = () => {
   const dataHelper = useImportDataHelper();
 
   const project = useProject();
@@ -104,6 +106,8 @@ export const ImportView: FunctionComponent = () => {
           onNewFiles={dataHelper.onNewFiles}
           loading={loading}
           operationStatus={applyImportHelper.status}
+          importedKeys={applyImportHelper.importedKeys}
+          totalKeys={applyImportHelper.totalKeys}
           importDone={applyImportHelper.loaded}
           disabled={!canEditProtectedBranch}
           operation={

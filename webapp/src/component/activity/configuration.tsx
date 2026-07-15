@@ -97,7 +97,7 @@ export const actionsConfiguration: Partial<
     },
     entities: {
       Translation: true,
-      Key: ['name', 'namespace'],
+      Key: ['name', 'namespace', 'maxCharLimit'],
       Screenshot: true,
     },
   },
@@ -164,6 +164,12 @@ export const actionsConfiguration: Partial<
       return <T keyName="activity_key_tags_edit" params={params} />;
     },
     entities: { KeyMeta: true },
+  },
+  KEY_CHARACTER_LIMIT_EDIT: {
+    label(params) {
+      return <T keyName="activity_key_character_limit_edit" params={params} />;
+    },
+    entities: { Key: ['maxCharLimit'] },
   },
   TRANSLATION_HISTORY_ADD: {
     label(params) {
@@ -540,6 +546,20 @@ export const actionsConfiguration: Partial<
       return data.modifiedEntities?.TranslationSuggestion?.[0]?.description
         ?.translation as any as string;
     },
+  },
+  QA_ISSUE_IGNORE: {
+    label(params) {
+      return <T keyName="activity_qa_issue_ignore" params={params} />;
+    },
+    entities: { TranslationQaIssue: ['state'] },
+    titleReferences: ['key'],
+  },
+  QA_ISSUE_UNIGNORE: {
+    label(params) {
+      return <T keyName="activity_qa_issue_unignore" params={params} />;
+    },
+    entities: { TranslationQaIssue: ['state'] },
+    titleReferences: ['key'],
   },
   BRANCH_CREATE: {
     label(params) {

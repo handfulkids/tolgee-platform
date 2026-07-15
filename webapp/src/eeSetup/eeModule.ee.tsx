@@ -6,31 +6,23 @@ import { BookClosed, ClipboardCheck } from '@untitled-ui/icons-react';
 import { Link, Route, Switch, useRouteMatch } from 'react-router-dom';
 import { Badge, Box, MenuItem } from '@mui/material';
 
-import { AdministrationEeTAView } from '../ee/billing/administration/translationAgencies/AdministrationEeTAView';
-import { AdministrationEeTAEditView } from '../ee/billing/administration/translationAgencies/AdministrationEeTAEditView';
-import { AdministrationEeTACreateView } from '../ee/billing/administration/translationAgencies/AdministrationEeTACreateView';
+import { billingModule } from 'tg.billing/billingModule';
 
 import { addUserMenuItems } from '../component/security/UserMenu/UserMenuItems';
-import { BillingMenuItem } from '../ee/billing/component/UserMenu/BillingMenuItem';
 import { PublicOnlyRoute } from '../component/common/PublicOnlyRoute';
 import { PrivateRoute } from '../component/common/PrivateRoute';
 import { LINKS, PARAMS } from '../constants/links';
 import { MyTasksView } from '../ee/task/views/myTasks/MyTasksView';
 import { useGlobalContext } from '../globalContext/GlobalContext';
 import { useUserTasks } from '../globalContext/useUserTasks';
-import { AdministrationCloudPlansView } from '../ee/billing/administration/subscriptionPlans/viewsCloud/AdministrationCloudPlansView';
-import { AdministrationCloudPlanCreateView } from '../ee/billing/administration/subscriptionPlans/viewsCloud/AdministrationCloudPlanCreateView';
-import { AdministrationCloudPlanEditView } from '../ee/billing/administration/subscriptionPlans/viewsCloud/AdministrationCloudPlanEditView';
-import { AdministrationEePlansView } from '../ee/billing/administration/subscriptionPlans/viewsSelfHostedEe/AdministrationEePlansView';
-import { AdministrationEePlanCreateView } from '../ee/billing/administration/subscriptionPlans/viewsSelfHostedEe/AdministrationEePlanCreateView';
-import { AdministrationEePlanEditView } from '../ee/billing/administration/subscriptionPlans/viewsSelfHostedEe/AdministrationEePlanEditView';
-import { AdministrationEeLicenseView } from '../ee/billing/administration/AdministrationEeLicenseView';
+import { AdministrationEeLicenseView } from 'tg.ee.module/billing/administration/AdministrationEeLicenseView';
 import { SlackApp } from '../ee/organizationApps/SlackApp';
-import { useConfig, useEnabledFeatures } from '../globalContext/helpers';
-import { OrganizationSubscriptionsView } from '../ee/billing/Subscriptions/OrganizationSubscriptionsView';
-import { OrganizationInvoicesView } from '../ee/billing/Invoices/OrganizationInvoicesView';
-import { OrganizationBillingView } from '../ee/billing/OrganizationBillingView';
-import { OrganizationBillingTestClockHelperView } from '../ee/billing/OrganizationBillingTestClockHelperView';
+import {
+  useConfig,
+  useEnabledFeatures,
+  useIsAdminOrSupporter,
+  useIsBeingImpersonated,
+} from '../globalContext/helpers';
 import { ProjectTasksView } from '../ee/task/views/projectTasks/ProjectTasksView';
 import { addOperations } from '../views/projects/translations/BatchOperations/operations';
 import { OperationTaskCreate } from '../ee/batchOperations/OperationTaskCreate';
@@ -38,6 +30,7 @@ import { OperationTaskAddKeys } from '../ee/batchOperations/OperationTaskAddKeys
 import { OperationTaskRemoveKeys } from '../ee/batchOperations/OperationTaskRemoveKeys';
 import { useTranslationsSelector } from '../views/projects/translations/context/TranslationsContext';
 import { useProjectPermissions } from '../hooks/useProjectPermissions';
+import { useProject } from '../hooks/useProject';
 import { addPanel } from '../views/projects/translations/ToolsPanel/panelsList';
 import { tasksCount, TasksPanel } from '../ee/task/components/TasksPanel';
 import { addDeveloperViewItems } from '../views/projects/developer/developerViewItems';
@@ -47,35 +40,48 @@ import { addProjectMenuItems } from '../views/projects/projectMenu/ProjectMenu';
 import { addAdministrationMenuItems } from '../views/administration/components/BaseAdministrationView';
 import { SsoLoginView } from '../ee/security/Sso/SsoLoginView';
 import { OperationOrderTranslation } from '../views/projects/translations/BatchOperations/OperationOrderTranslation';
-import {
-  BillingMenuItemsProps,
-  GlossaryTermHighlightModel,
-  GlossaryTermHighlightsProps,
-  GlossaryTermPreviewProps,
-} from './EeModuleType';
-import { AdministrationSubscriptionsView } from '../ee/billing/administration/subscriptions/AdministrationSubscriptionsView';
+import { BillingMenuItemsProps } from './EeModuleType';
 import { OrganizationLlmProvidersView } from '../ee/llm/OrganizationLLMProviders/OrganizationLlmProvidersView';
 import { GlossariesListView } from '../ee/glossary/views/GlossariesListView';
-import { useGlossaryTermHighlights as useGlossaryTermHighlightsInternal } from '../ee/glossary/hooks/useGlossaryTermHighlights';
-import { GlossaryTermPreview as GlossaryTermPreviewInternal } from '../ee/glossary/components/GlossaryTermPreview';
+import { TranslationMemoriesListView } from '../ee/translationMemory/views/TranslationMemoriesListView';
+import { TranslationMemoryView } from '../ee/translationMemory/views/TranslationMemoryView';
+export { useGlossaryTermHighlights } from '../ee/glossary/hooks/useGlossaryTermHighlights';
+export { GlossaryTermPreview } from '../ee/glossary/components/GlossaryTermPreview';
 import {
   GlossariesPanel,
   useGlossariesCount,
 } from '../ee/glossary/components/GlossariesPanel';
+import {
+  QaChecksPanel,
+  useQaChecksCount,
+} from '../ee/qa/components/QaChecksPanel';
+export { QaBadge } from '../ee/qa/components/QaBadge';
+export { useQaChecksEnabled } from '../ee/qa/hooks/useQaChecksEnabled';
+export { useQaDisabledLanguageIds } from '../ee/qa/hooks/useQaDisabledLanguageIds';
+export { QaLanguageStats } from '../ee/qa/components/QaLanguageStats';
+export { QaCheckItem } from '../ee/qa/components/QaCheckItem';
+export { QaIssueHighlight } from '../ee/qa/components/QaIssueHighlight';
+export {
+  SubfilterQaChecks,
+  getQaChecksFiltersLength,
+  getQaChecksFiltersName,
+} from '../ee/qa/components/SubfilterQaChecks';
 import { GlossaryRouter } from '../ee/glossary/views/GlossaryRouter';
 import { createAdder } from '../fixtures/pluginAdder';
 import { ProjectSettingsTab } from '../views/projects/project/ProjectSettingsView';
 import { OperationAssignTranslationLabel } from '../ee/batchOperations/OperationAssignTranslationLabel';
 import { OperationUnassignTranslationLabel } from '../ee/batchOperations/OperationUnassignTranslationLabel';
 import { ProjectSettingsLabels } from '../ee/translationLabels/ProjectSettingsLabels';
+import { ProjectSettingsQa } from '../ee/qa/components/ProjectSettingsQa';
+import { OperationQaRecheck } from '../ee/qa/components/OperationQaRecheck';
 import { BranchesView } from '../ee/branching/BranchesView';
 import { BranchMergePage } from '../ee/branching/BranchMergePage';
 import { Branch } from '../component/CustomIcons';
+import { QaCheck } from '../component/CustomIcons';
 
+export { ProjectSettingsTranslationMemory } from '../ee/translationMemory/components/projectSettings/ProjectSettingsTranslationMemory';
 export { TaskReference } from '../ee/task/components/TaskReference';
 export { BranchReference } from '../ee/branching/components/BranchReference';
-export { GlobalLimitPopover } from '../ee/billing/limitPopover/GlobalLimitPopover';
-export { CriticalUsageCircle } from '../ee/billing/component/CriticalUsageCircle';
 export { TranslationTaskIndicator } from '../ee/task/components/TranslationTaskIndicator';
 export { PermissionsAdvancedEe } from '../ee/PermissionsAdvanced/PermissionsAdvancedEe';
 export { TranslationsTaskDetail } from '../ee/task/components/TranslationsTaskDetail';
@@ -87,17 +93,20 @@ export { AgencyLabel } from '../ee/orderTranslations/AgencyLabel';
 export { TaskItem } from '../ee/task/components/TaskItem';
 export { TaskFilterPopover } from '../ee/task/components/taskFilter/TaskFilterPopover';
 export type { TaskFilterType } from '../ee/task/components/taskFilter/TaskFilterPopover';
-export { TrialAnnouncement } from '../ee/billing/component/topBar/TrialAnnouncement';
-export { TrialChip } from '../ee/billing/component/topBar/TrialChip';
 export { TaskInfoMessage } from '../ee/task/components/TaskInfoMessage';
 export { AiPrompt } from '../ee/llm/AiPrompt/AiPrompt';
 export { AiContextData } from '../ee/llm/AiContextData/AiContextData';
 export { AiPromptsList } from '../ee/llm/AiPromptsList/AiPromptsList';
 
-export const billingMenuItems = [
-  BillingMenuItem,
-] as React.FC<BillingMenuItemsProps>[];
-export const apps = [SlackApp] as React.FC[];
+export { GlobalLimitPopover } from '../ee/billing/limitPopover/GlobalLimitPopover';
+export { CriticalUsageCircle } from '../ee/billing/component/CriticalUsageCircle';
+export { TrialAnnouncement } from '../ee/billing/component/topBar/TrialAnnouncement';
+export { TrialChip } from '../ee/billing/component/topBar/TrialChip';
+
+export const billingMenuItems = billingModule.billingMenuItems as React.FC<
+  React.PropsWithChildren<BillingMenuItemsProps>
+>[];
+export const apps = [SlackApp] as React.FC<React.PropsWithChildren<unknown>>[];
 
 export const routes = {
   Root: () => {
@@ -115,56 +124,14 @@ export const routes = {
     );
   },
   Administration: () => (
-    <Switch>
-      <PrivateRoute exact path={LINKS.ADMINISTRATION_EE_LICENSE.template}>
-        <AdministrationEeLicenseView />
-      </PrivateRoute>
-      <PrivateRoute exact path={LINKS.ADMINISTRATION_EE_TA.template}>
-        <AdministrationEeTAView />
-      </PrivateRoute>
-      <PrivateRoute exact path={LINKS.ADMINISTRATION_EE_TA_CREATE.template}>
-        <AdministrationEeTACreateView />
-      </PrivateRoute>
-      <PrivateRoute exact path={LINKS.ADMINISTRATION_EE_TA_EDIT.template}>
-        <AdministrationEeTAEditView />
-      </PrivateRoute>
-      <PrivateRoute
-        exact
-        path={LINKS.ADMINISTRATION_BILLING_CLOUD_PLANS.template}
-      >
-        <AdministrationCloudPlansView />
-      </PrivateRoute>
-      <PrivateRoute path={LINKS.ADMINISTRATION_BILLING_SUBSCRIPTIONS.template}>
-        <AdministrationSubscriptionsView />
-      </PrivateRoute>
-      <PrivateRoute
-        exact
-        path={LINKS.ADMINISTRATION_BILLING_CLOUD_PLAN_CREATE.template}
-      >
-        <AdministrationCloudPlanCreateView />
-      </PrivateRoute>
-      <PrivateRoute
-        exact
-        path={LINKS.ADMINISTRATION_BILLING_CLOUD_PLAN_EDIT.template}
-      >
-        <AdministrationCloudPlanEditView />
-      </PrivateRoute>
-      <PrivateRoute exact path={LINKS.ADMINISTRATION_BILLING_EE_PLANS.template}>
-        <AdministrationEePlansView />
-      </PrivateRoute>
-      <PrivateRoute
-        exact
-        path={LINKS.ADMINISTRATION_BILLING_EE_PLAN_CREATE.template}
-      >
-        <AdministrationEePlanCreateView />
-      </PrivateRoute>
-      <PrivateRoute
-        exact
-        path={LINKS.ADMINISTRATION_BILLING_EE_PLAN_EDIT.template}
-      >
-        <AdministrationEePlanEditView />
-      </PrivateRoute>
-    </Switch>
+    <>
+      <Switch>
+        <PrivateRoute exact path={LINKS.ADMINISTRATION_EE_LICENSE.template}>
+          <AdministrationEeLicenseView />
+        </PrivateRoute>
+      </Switch>
+      <billingModule.AdministrationRoutes />
+    </>
   ),
   Organization: () => {
     const config = useConfig();
@@ -175,26 +142,7 @@ export const routes = {
             <OrganizationLlmProvidersView />
           </PrivateRoute>
         )}
-        {config.billing.enabled && (
-          <Switch>
-            <PrivateRoute path={LINKS.ORGANIZATION_SUBSCRIPTIONS.template}>
-              <OrganizationSubscriptionsView />
-            </PrivateRoute>
-            <PrivateRoute path={LINKS.ORGANIZATION_INVOICES.template}>
-              <OrganizationInvoicesView />
-            </PrivateRoute>
-            <PrivateRoute path={LINKS.ORGANIZATION_BILLING.template}>
-              <OrganizationBillingView />
-            </PrivateRoute>
-            {config.internalControllerEnabled && (
-              <PrivateRoute
-                path={LINKS.ORGANIZATION_BILLING_TEST_CLOCK_HELPER.template}
-              >
-                <OrganizationBillingTestClockHelperView />
-              </PrivateRoute>
-            )}
-          </Switch>
-        )}
+        <billingModule.OrganizationRoutes />
         <PrivateRoute path={LINKS.ORGANIZATION_SSO.template}>
           <OrganizationSsoView />
         </PrivateRoute>
@@ -203,6 +151,18 @@ export const routes = {
         </PrivateRoute>
         <PrivateRoute exact path={LINKS.ORGANIZATION_GLOSSARY.template}>
           <GlossaryRouter />
+        </PrivateRoute>
+        <PrivateRoute
+          exact
+          path={LINKS.ORGANIZATION_TRANSLATION_MEMORIES.template}
+        >
+          <TranslationMemoriesListView />
+        </PrivateRoute>
+        <PrivateRoute
+          exact
+          path={LINKS.ORGANIZATION_TRANSLATION_MEMORY.template}
+        >
+          <TranslationMemoryView />
         </PrivateRoute>
       </>
     );
@@ -229,6 +189,7 @@ export function useUserTaskCount() {
 }
 
 export const useAddBatchOperations = () => {
+  const project = useProject();
   const { satisfiesPermission } = useProjectPermissions();
   const prefilteredTask = useTranslationsSelector(
     (c) => c.prefilter?.task !== undefined
@@ -237,13 +198,32 @@ export const useAddBatchOperations = () => {
 
   const { isEnabled } = useEnabledFeatures();
   const canEditTasks = satisfiesPermission('tasks.edit');
+  const canEditTranslations = satisfiesPermission('translations.edit');
   const canAssignLabels = satisfiesPermission('translation-labels.assign');
   const taskFeature = isEnabled('TASKS');
   const labelFeature = isEnabled('TRANSLATION_LABELS');
+  const qaChecksFeature = isEnabled('QA_CHECKS');
   const orderTranslationsFeature = isEnabled('ORDER_TRANSLATION');
+  const qaChecksProjectFeature = qaChecksFeature && project.useQaChecks;
+  const isAdminOrSupporter = useIsAdminOrSupporter();
+  const isBeingImpersonated = useIsBeingImpersonated();
+  const hasPrivilegedAccess = isAdminOrSupporter || isBeingImpersonated;
   const { t } = useTranslate();
 
   return addOperations([
+    {
+      items: [
+        {
+          id: 'qa_recheck',
+          label: t('batch_operations_qa_recheck'),
+          divider: true,
+          enabled: canEditTranslations,
+          hidden: !qaChecksProjectFeature || !hasPrivilegedAccess,
+          component: OperationQaRecheck,
+        },
+      ],
+      placement: { position: 'after', value: 'clear_translations' },
+    },
     {
       items: [
         {
@@ -331,6 +311,19 @@ export const glossaryPanelAdder = addPanel(
     },
   ],
   { position: 'after', value: 'translation_memory' }
+);
+
+export const qaChecksPanelAdder = addPanel(
+  [
+    {
+      id: 'qa_checks',
+      icon: <QaCheck />,
+      name: <T keyName="translation_tools_qa_checks" />,
+      component: QaChecksPanel,
+      itemsCountFunction: useQaChecksCount,
+    },
+  ],
+  { position: 'before', value: 'comments' }
 );
 
 export const useAddDeveloperViewItems = () => {
@@ -433,6 +426,7 @@ export const useAddProjectMenuItems = () => {
 export const useAddAdministrationMenuItems = () => {
   const { t } = useTranslate();
   const config = useConfig();
+  const billingMenuItems = billingModule.useAdministrationMenuItems();
 
   return addAdministrationMenuItems(
     [
@@ -442,30 +436,10 @@ export const useAddAdministrationMenuItems = () => {
         label: t('administration_ee_license'),
         condition: () => true,
       },
-      {
-        id: 'subscriptions',
-        link: LINKS.ADMINISTRATION_BILLING_SUBSCRIPTIONS,
-        label: t('administration_subscriptions'),
+      ...billingMenuItems.map((item) => ({
+        ...item,
         condition: () => config.billing.enabled,
-      },
-      {
-        id: 'translation_agencies',
-        link: LINKS.ADMINISTRATION_EE_TA,
-        label: t('administration_ee_translation_agencies'),
-        condition: () => config.billing.enabled,
-      },
-      {
-        id: 'cloud_plans',
-        link: LINKS.ADMINISTRATION_BILLING_CLOUD_PLANS,
-        label: t('administration_cloud_plans'),
-        condition: () => config.billing.enabled,
-      },
-      {
-        id: 'self_hosted_plans',
-        link: LINKS.ADMINISTRATION_BILLING_EE_PLANS,
-        label: t('administration_ee_plans'),
-        condition: () => config.billing.enabled,
-      },
+      })),
     ],
     { position: 'after', value: 'users' }
   );
@@ -473,33 +447,54 @@ export const useAddAdministrationMenuItems = () => {
 
 export const useAddProjectSettingsTabs = (projectId: number) => {
   const { t } = useTranslate();
-  const tabs: ProjectSettingsTab[] = [];
-
-  tabs.push({
-    value: 'labels',
-    label: t('project_settings_menu_labels'),
-    link: LINKS.PROJECT_EDIT_LABELS.build({
-      [PARAMS.PROJECT_ID]: projectId,
-    }),
-    dataCy: 'project-settings-menu-labels',
-    component: ProjectSettingsLabels,
-    enabled: true,
-    routeMatch: useRouteMatch(LINKS.PROJECT_EDIT_LABELS.template),
+  const tabsAdder = createAdder<ProjectSettingsTab>({
+    referencingProperty: 'value',
   });
 
-  return createAdder<ProjectSettingsTab>({ referencingProperty: 'value' })(
-    tabs,
-    {
-      position: 'after',
-      value: 'advanced',
-      fallbackPosition: 'start',
-    }
-  );
+  return (originalTabs: ProjectSettingsTab[]) => {
+    let tabs = originalTabs;
+    tabs = tabsAdder(
+      [
+        {
+          value: 'qa',
+          label: t('project_settings_menu_qa_checks'),
+          link: LINKS.PROJECT_EDIT_QA.build({
+            [PARAMS.PROJECT_ID]: projectId,
+          }),
+          dataCy: 'project-settings-menu-qa',
+          component: ProjectSettingsQa,
+          enabled: true,
+          routeMatch: useRouteMatch(LINKS.PROJECT_EDIT_QA.template),
+        },
+      ],
+      {
+        position: 'after',
+        value: 'advanced',
+        fallbackPosition: 'start',
+      }
+    )(tabs);
+
+    tabs = tabsAdder(
+      [
+        {
+          value: 'labels',
+          label: t('project_settings_menu_labels'),
+          link: LINKS.PROJECT_EDIT_LABELS.build({
+            [PARAMS.PROJECT_ID]: projectId,
+          }),
+          dataCy: 'project-settings-menu-labels',
+          component: ProjectSettingsLabels,
+          enabled: true,
+          routeMatch: useRouteMatch(LINKS.PROJECT_EDIT_LABELS.template),
+        },
+      ],
+      {
+        position: 'after',
+        value: 'qa',
+        fallbackPosition: 'start',
+      }
+    )(tabs);
+
+    return tabs;
+  };
 };
-
-export const useGlossaryTermHighlights = (
-  props: GlossaryTermHighlightsProps
-): GlossaryTermHighlightModel[] => useGlossaryTermHighlightsInternal(props);
-
-export const GlossaryTermPreview: React.VFC<GlossaryTermPreviewProps> =
-  GlossaryTermPreviewInternal;

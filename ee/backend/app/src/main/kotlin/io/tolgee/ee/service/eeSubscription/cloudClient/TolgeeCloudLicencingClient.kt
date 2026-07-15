@@ -50,13 +50,21 @@ class TolgeeCloudLicencingClient(
   fun reportErrorRemote(
     error: String,
     licenseKey: String,
-  ) = postRequest<Any>(REPORT_ERROR_PATH, ReportErrorDto(error, licenseKey))
+  ) {
+    if (!eeProperties.isRemoteLicensingEnabled()) {
+      return
+    }
+    postRequest<Any>(REPORT_ERROR_PATH, ReportErrorDto(error, licenseKey))
+  }
 
   fun reportUsageRemote(
     subscription: EeSubscriptionDto,
     keys: Long?,
     seats: Long?,
   ) {
+    if (!eeProperties.isRemoteLicensingEnabled()) {
+      return
+    }
     postRequest<Unit>(
       REPORT_USAGE_PATH,
       ReportUsageDto(licenseKey = subscription.licenseKey, keys = keys, seats = seats),
@@ -64,6 +72,9 @@ class TolgeeCloudLicencingClient(
   }
 
   internal fun releaseKeyRemote(subscription: EeSubscription) {
+    if (!eeProperties.isRemoteLicensingEnabled()) {
+      return
+    }
     postRequest<Unit>(
       RELEASE_KEY_PATH,
       ReleaseKeyDto(subscription.licenseKey),
@@ -96,7 +107,11 @@ class TolgeeCloudLicencingClient(
     url: String,
     body: Any,
   ): T {
-    return httpClient.requestForJson("${eeProperties.licenseServer}$url", body, HttpMethod.POST, T::class.java)
+    val licenseServer = eeProperties.licenseServer
+    if (!eeProperties.isRemoteLicensingEnabled()) {
+      throw BadRequestException(Message.FEATURE_NOT_ENABLED)
+    }
+    return httpClient.requestForJson("$licenseServer$url", body, HttpMethod.POST, T::class.java)
   }
 
   fun getUsageRemote(licenseKey: String): CurrentUsageModel {

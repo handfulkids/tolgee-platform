@@ -5,6 +5,7 @@ import io.tolgee.component.HttpClient
 import io.tolgee.configuration.tolgee.TelemetryProperties
 import io.tolgee.dtos.TelemetryReportRequest
 import io.tolgee.util.Logging
+import io.tolgee.util.isTolgeeOwnedUrl
 import io.tolgee.util.logger
 import jakarta.persistence.EntityManager
 import org.springframework.http.HttpMethod
@@ -27,6 +28,8 @@ class TelemetryService(
   @Transactional
   fun report() {
     if (!telemetryProperties.enabled) return
+    if (telemetryProperties.server.isBlank()) return
+    if (telemetryProperties.server.isTolgeeOwnedUrl()) return
     val data: TelemetryReportRequest = getTelemetryData()
     if (data.projectsCount == 0L) return
     if (data.usersCount == 0L) return

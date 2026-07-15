@@ -1,5 +1,6 @@
 package io.tolgee.ee.api.v2.controllers.task
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.tolgee.ProjectAuthControllerTest
 import io.tolgee.config.TestEmailConfiguration
 import io.tolgee.constants.Feature
@@ -16,6 +17,7 @@ import io.tolgee.fixtures.andAssertThatJson
 import io.tolgee.fixtures.andIsBadRequest
 import io.tolgee.fixtures.andIsOk
 import io.tolgee.fixtures.node
+import io.tolgee.fixtures.waitForNotThrowing
 import io.tolgee.model.enums.TaskType
 import io.tolgee.model.notifications.NotificationType.TASK_CANCELED
 import io.tolgee.model.notifications.NotificationType.TASK_FINISHED
@@ -108,7 +110,11 @@ class TaskControllerTest : ProjectAuthControllerTest("/v2/projects/") {
 
     executeInNewTransaction {
       assertThat(notificationUtil.newestInAppNotification().linkedTask?.name).isEqualTo("Another task")
-      assertThat(notificationUtil.newestEmailNotification()).contains("/projects/${testData.project.id}/task?number=3")
+      waitForNotThrowing(timeout = 2000, pollTime = 25) {
+        assertThat(
+          notificationUtil.newestEmailNotification(),
+        ).contains("/projects/${testData.project.id}/task?number=3")
+      }
     }
   }
 
@@ -266,6 +272,33 @@ class TaskControllerTest : ProjectAuthControllerTest("/v2/projects/") {
 
   @Test
   @ProjectJWTAuthTestMethod
+  fun `does not attach key from another project`() {
+    val foreignKeyId = testData.unrelatedKey.self.id
+    performProjectAuthPut(
+      "tasks/${testData.translateTask.self.number}/keys",
+      UpdateTaskKeysRequest(
+        addKeys = mutableSetOf(foreignKeyId),
+      ),
+    ).andIsOk
+
+    executeInNewTransaction {
+      val attached =
+        taskKeyRepository
+          .findAll()
+          .any { it.task.id == testData.translateTask.self.id && it.key.id == foreignKeyId }
+      assertThat(attached).isFalse()
+    }
+
+    // the task still has only its original keys
+    performProjectAuthGet(
+      "tasks/${testData.translateTask.self.number}",
+    ).andIsOk.andAssertThatJson {
+      node("totalItems").isEqualTo(testData.keysInTask.size)
+    }
+  }
+
+  @Test
+  @ProjectJWTAuthTestMethod
   fun `can remove keys`() {
     val allKeys = testData.keysInTask.map { it.self.id }.toMutableSet()
     val keysToRemove = mutableSetOf(allKeys.first())
@@ -404,25 +437,32 @@ class TaskControllerTest : ProjectAuthControllerTest("/v2/projects/") {
   @Test
   @ProjectJWTAuthTestMethod
   fun `canceled tasks can be filtered out by timestamp`() {
-    val timeBeforeCreation = System.currentTimeMillis()
-    performProjectAuthPut(
-      "tasks/${testData.translateTask.self.number}/cancel",
-    ).andIsOk.andAssertThatJson {
-      node("state").isEqualTo("CANCELED")
-    }
-    val timeAfterCreation = System.currentTimeMillis()
+    val closedAt =
+      performProjectAuthPut(
+        "tasks/${testData.translateTask.self.number}/cancel",
+      ).andIsOk
+        .andAssertThatJson {
+          node("state").isEqualTo("CANCELED")
+          node("closedAt").isNumber
+        }.andReturn()
+        .response
+        .let {
+          com.fasterxml.jackson.module.kotlin
+            .jacksonObjectMapper()
+            .readTree(it.contentAsString)["closedAt"]
+            .asLong()
+        }
 
-    // should be included
+    // Filter with closedAt - 1: the canceled task's closedAt is after this, so both tasks should be included
     performProjectAuthGet(
-      "tasks?filterNotClosedBefore=$timeBeforeCreation",
+      "tasks?filterNotClosedBefore=${closedAt - 1}",
     ).andIsOk.andAssertThatJson {
       node("page").node("totalElements").isEqualTo(2)
-      node("_embedded.tasks[0].name").isEqualTo("Translate task")
     }
 
-    // should be excluded
+    // Filter with closedAt + 1: the canceled task's closedAt is before this, so only the open task remains
     performProjectAuthGet(
-      "tasks?filterNotClosedBefore=$timeAfterCreation",
+      "tasks?filterNotClosedBefore=${closedAt + 1}",
     ).andIsOk.andAssertThatJson {
       node("page").node("totalElements").isEqualTo(1)
       node("_embedded.tasks[0].name").isEqualTo("Review task")

@@ -50,14 +50,14 @@ interface ImportTranslationRepository : JpaRepository<ImportTranslation, Long> {
         from ImportTranslation it
         left join it.conflict itc 
         join it.key ik
-        left join Namespace en on ik.file.namespace = en.name and en.project = ik.file.import.project 
-        left join Key ek on it.key.name = ek.name and ek.project = it.key.file.import.project 
+        left join Namespace en on ik.file.namespace = en.name and en.project = ik.file.importData.project 
+        left join Key ek on it.key.name = ek.name and ek.project = it.key.file.importData.project 
             and (ek.namespace = en or (ek.namespace is null and en is null))
         left join ek.branch ekb
         left join ik.keyMeta ikm
         left join ek.keyMeta ekm
-        left join ImportSettings is on is.project = ik.file.import.project 
-        left join ik.file.import.branch b
+        left join ImportSettings is on is.project = ik.file.importData.project
+        left join ik.file.importData.branch b
         where (itc.id is not null or :onlyConflicts = false)
         and ((b is null and (ekb is null or ekb.isDefault)) or (b.id = ekb.id))
         and ((itc.id is not null and it.resolvedHash is null) or :onlyUnresolved = false)
@@ -86,19 +86,5 @@ interface ImportTranslationRepository : JpaRepository<ImportTranslation, Long> {
     languageId: Long,
   ): ImportTranslation?
 
-  @Query(
-    """
-      select distinct it from ImportTranslation it
-      join fetch it.key ik
-      left join fetch ik.keyMeta
-      left join fetch it.conflict ic
-      left join fetch ic.key ick
-      left join fetch ick.keyMeta
-      join fetch it.language il
-      join il.file if
-      where if.needsParamConversion = true
-      and if.import.id = :importId
-      """,
-  )
-  fun findTranslationsForPlaceholderConversion(importId: Long): List<ImportTranslation>
+  fun findByKeyId(keyId: Long): List<ImportTranslation>
 }

@@ -27,8 +27,10 @@ class PromptTestData : BaseTestData() {
   lateinit var german: LanguageBuilder
   lateinit var chinese: LanguageBuilder
   lateinit var keys: MutableList<KeyBuilder>
+  lateinit var keyWithoutTranslations: KeyBuilder
   lateinit var customPrompt: PromptBuilder
   lateinit var llmProvider: LlmProviderBuilder
+  lateinit var unrelatedLlmProvider: LlmProviderBuilder
 
   init {
     serverAdmin =
@@ -48,9 +50,15 @@ class PromptTestData : BaseTestData() {
       }
 
     unrelatedOrganization =
-      root.addOrganization {
-        name = "unrelated organization"
-      }
+      root
+        .addOrganization {
+          name = "unrelated organization"
+        }.build {
+          unrelatedLlmProvider =
+            addLlmProvider {
+              name = "unrelated-organization-provider"
+            }
+        }
 
     organization =
       root
@@ -118,7 +126,11 @@ class PromptTestData : BaseTestData() {
             addKey("Key $i") {}.also {
               addTranslation {
                 key = it.self
-                text = "English translation $i"
+                text =
+                  when (i) {
+                    4 -> "Says \"hi\""
+                    else -> "English translation $i"
+                  }
                 language = english.self
               }
               addTranslation {
@@ -144,6 +156,10 @@ class PromptTestData : BaseTestData() {
           ClassPathResource("development/testScreenshot.png", this::class.java.getClassLoader())
         addScreenshot(screenshotResource) {}
         setDescription("Key 1 description.")
+        self.maxCharLimit = 42
+      }
+      keys[3].apply {
+        setDescription("Has \"quotes\" and\nnewline \\ backslash")
       }
       addKeysDistance(keys[0].self, keys[1].self) {
         distance = 2.0
@@ -206,6 +222,12 @@ class PromptTestData : BaseTestData() {
           }
         }
       }
+  }
+
+  fun addKeyWithoutTranslations() {
+    promptProject.build {
+      keyWithoutTranslations = addKey("Key without translations") {}
+    }
   }
 
   fun addLanguageConfig() {

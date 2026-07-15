@@ -20,6 +20,7 @@ import io.tolgee.security.authentication.AuthenticationFacade
 import io.tolgee.service.language.LanguageService
 import io.tolgee.service.machineTranslation.MtService
 import io.tolgee.service.project.ProjectService
+import io.tolgee.service.translationMemory.TmAutoTranslateProvider
 import io.tolgee.util.executeInNewTransaction
 import io.tolgee.util.tryUntilItDoesntBreakConstraint
 import jakarta.persistence.EntityManager
@@ -32,7 +33,7 @@ import org.springframework.transaction.PlatformTransactionManager
 class AutoTranslationService(
   private val translationService: TranslationService,
   private val autoTranslationConfigRepository: AutoTranslationConfigRepository,
-  private val translationMemoryService: TranslationMemoryService,
+  private val tmAutoTranslateProvider: TmAutoTranslateProvider,
   private val mtService: MtService,
   private val languageService: LanguageService,
   private val batchJobService: BatchJobService,
@@ -74,7 +75,7 @@ class AutoTranslationService(
         target =
           languageIds.flatMap { languageId ->
             if (configs[languageId]?.usingTm == false && configs[languageId]?.usingPrimaryMtService == false) {
-              return@flatMap listOf()
+              return@flatMap emptyList()
             }
             keyIds.map { keyId ->
               BatchTranslationTargetItem(
@@ -125,7 +126,7 @@ class AutoTranslationService(
   ): Triple<String?, MtServiceType?, Long?>? {
     if (config.usingTm) {
       val value =
-        translationMemoryService
+        tmAutoTranslateProvider
           .getAutoTranslatedValue(
             translation.key,
             translation.language,
@@ -258,7 +259,7 @@ class AutoTranslationService(
     translations: List<Translation>,
     key: Key,
     isBatch: Boolean,
-  ) {
+  ): List<Long> {
     val project = projectService.getDto(key.project.id)
     val languages = translations.map { it.language.id }
 
@@ -270,13 +271,16 @@ class AutoTranslationService(
           usePrimaryService = true
         }.associateBy { it.targetLanguageId }
 
+    val modifiedIds = mutableListOf<Long>()
     translations.forEach { translation ->
       result[translation.language.id]?.let {
         it.translatedText?.let { text ->
           translation.setValueAndState(project, text, it.service, it.promptId)
+          modifiedIds.add(translation.id)
         }
       }
     }
+    return modifiedIds
   }
 
   /**
@@ -288,14 +292,15 @@ class AutoTranslationService(
   ): Map<Translation, Boolean> {
     val project = projectService.getDto(key.project.id)
     return toTranslate.associateWith { translation ->
-      val tmValue = translationMemoryService.getAutoTranslatedValue(key, translation.language)
-      tmValue
-        ?.targetTranslationText
-        .let { targetText -> if (targetText.isNullOrEmpty()) null else targetText }
-        ?.let {
-          translation.setValueAndState(project, it, null)
-        }
-      (tmValue != null)
+      // "Match" must mean a non-blank target was actually applied. Returning true on a blank hit
+      // would tell the caller to skip MT fallback for this key, leaving it untranslated.
+      val tmText =
+        tmAutoTranslateProvider
+          .getAutoTranslatedValue(key, translation.language)
+          ?.targetTranslationText
+          ?.takeIf { it.isNotBlank() }
+      tmText?.let { translation.setValueAndState(project, it, null) }
+      tmText != null
     }
   }
 
@@ -385,9 +390,9 @@ class AutoTranslationService(
     val configs = autoTranslationConfigRepository.findByProjectAndTargetLanguageIdIn(project, targetLanguageIds)
     val default =
       autoTranslationConfigRepository.findDefaultForProject(project)
-        ?: autoTranslationConfigRepository.findDefaultForProject(project) ?: AutoTranslationConfig().also {
-        it.project = project
-      }
+        ?: AutoTranslationConfig().also {
+          it.project = project
+        }
 
     return targetLanguageIds.associateWith { languageId ->
       (configs.find { it.targetLanguage?.id == languageId } ?: default)

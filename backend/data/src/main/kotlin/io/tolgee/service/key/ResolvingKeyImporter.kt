@@ -1,8 +1,10 @@
 package io.tolgee.service.key
 
 import io.tolgee.constants.Message
+import io.tolgee.dtos.CreateScreenshotResult
 import io.tolgee.dtos.KeyImportResolvableResult
 import io.tolgee.dtos.cacheable.LanguageDto
+import io.tolgee.dtos.request.KeyInScreenshotPositionDto
 import io.tolgee.dtos.request.ScreenshotInfoDto
 import io.tolgee.dtos.request.translation.importKeysResolvable.ImportKeysResolvableItemDto
 import io.tolgee.dtos.request.translation.importKeysResolvable.ImportTranslationResolution
@@ -15,6 +17,8 @@ import io.tolgee.model.Language
 import io.tolgee.model.Project
 import io.tolgee.model.Project_
 import io.tolgee.model.Screenshot
+import io.tolgee.model.branching.Branch
+import io.tolgee.model.branching.Branch_
 import io.tolgee.model.enums.Scope
 import io.tolgee.model.key.Key
 import io.tolgee.model.key.Key_
@@ -37,6 +41,7 @@ class ResolvingKeyImporter(
   val applicationContext: ApplicationContext,
   val keysToImport: List<ImportKeysResolvableItemDto>,
   val projectEntity: Project,
+  val branch: String? = null,
 ) {
   private val entityManager = applicationContext.getBean(EntityManager::class.java)
   private val keyService = applicationContext.getBean(KeyService::class.java)
@@ -152,7 +157,12 @@ class ResolvingKeyImporter(
 
     // when an existing key is plural, we are converting all to plurals
     if (isExistingKeyPlural) {
-      translationsToModifyMap.convertToIcuPlurals(null).convertedStrings.forEach {
+      val converted = translationsToModifyMap.convertToIcuPlurals(key.pluralArgName)
+      if (key.pluralArgName.isNullOrBlank()) {
+        key.pluralArgName = converted.argName
+        keyService.save(key)
+      }
+      converted.convertedStrings.forEach {
         it.key.text = it.value
       }
       translationsToModify.save()
@@ -165,6 +175,7 @@ class ResolvingKeyImporter(
     // if anything from the new translations is plural, we are converting the key to plural
     if (convertedToPlurals != null) {
       key.isPlural = true
+      key.pluralArgName = convertedToPlurals.argName
       keyService.save(key)
       translationsToModify.forEach { translation ->
         translation.text = convertedToPlurals.convertedStrings[translation]
@@ -215,30 +226,55 @@ class ResolvingKeyImporter(
 
     val referencesToDelete = mutableListOf<KeyScreenshotReference>()
 
+    val mergedReferences = linkedMapOf<Pair<Long, Long>, MergedReferenceData>()
+
     keysToImport.forEach {
-      val key = getOrCreateKey(it)
+      val (key, _) = getOrCreateKey(it)
       it.screenshots?.forEach { screenshot ->
         val screenshotResult =
           createdScreenshots[screenshot.uploadedImageId]
             ?: throw NotFoundException(Message.ONE_OR_MORE_IMAGES_NOT_FOUND)
-        val info = ScreenshotInfoDto(screenshot.text, screenshot.positions)
 
-        screenshotService.addReference(
-          key = key.first,
-          screenshot = screenshotResult.screenshot,
-          info = info,
-          originalDimension = screenshotResult.originalDimension,
-          targetDimension = screenshotResult.targetDimension,
-        )
+        val referenceKey = key.id to screenshotResult.screenshot.id
+        val existing = mergedReferences[referenceKey]
+        if (existing != null) {
+          screenshot.positions?.let { newPositions ->
+            val combined: MutableList<KeyInScreenshotPositionDto> =
+              existing.mergedInfo.positions?.toMutableList() ?: mutableListOf()
+            combined.addAll(newPositions.filter { it !in combined })
+            existing.mergedInfo.positions = combined
+          }
+          if (existing.mergedInfo.text == null) {
+            existing.mergedInfo.text = screenshot.text
+          }
+          return@forEach
+        }
+
+        mergedReferences[referenceKey] =
+          MergedReferenceData(
+            key = key,
+            screenshotResult = screenshotResult,
+            mergedInfo = ScreenshotInfoDto(screenshot.text, screenshot.positions?.toMutableList()),
+          )
 
         val toDelete =
           allReferences.filter { reference ->
-            reference.key.id == key.first.id &&
+            reference.key.id == key.id &&
               reference.screenshot.location == screenshotResult.screenshot.location
           }
 
         referencesToDelete.addAll(toDelete)
       }
+    }
+
+    mergedReferences.values.forEach { refData ->
+      screenshotService.addReference(
+        key = refData.key,
+        screenshot = refData.screenshotResult.screenshot,
+        info = refData.mergedInfo,
+        originalDimension = refData.screenshotResult.originalDimension,
+        targetDimension = refData.screenshotResult.targetDimension,
+      )
     }
 
     screenshotService.removeScreenshotReferences(referencesToDelete)
@@ -311,7 +347,7 @@ class ResolvingKeyImporter(
           project = projectEntity,
           name = keyToImport.name,
           namespace = keyToImport.namespace,
-          branch = keyToImport.branch,
+          branch = branch ?: keyToImport.branch,
           isPlural = false,
         )
       }
@@ -329,6 +365,22 @@ class ResolvingKeyImporter(
     @Suppress("UNCHECKED_CAST")
     val namespaceJoin: Join<Key, Namespace> = root.fetch(Key_.namespace, JoinType.LEFT) as Join<Key, Namespace>
 
+    @Suppress("UNCHECKED_CAST")
+    val branchJoin: Join<Key, Branch> = root.fetch(Key_.branch, JoinType.LEFT) as Join<Key, Branch>
+
+    val branchPredicate =
+      if (branch.isNullOrEmpty()) {
+        cb.or(
+          branchJoin.get(Branch_.id).isNull,
+          cb.isTrue(branchJoin.get(Branch_.isDefault)),
+        )
+      } else {
+        cb.and(
+          cb.equal(branchJoin.get(Branch_.name), cb.literal(branch)),
+          cb.isNull(branchJoin.get(Branch_.deletedAt)),
+        )
+      }
+
     val predicates =
       keys
         .map { (namespace, name) ->
@@ -341,7 +393,12 @@ class ResolvingKeyImporter(
     val projectIdPath = root.get(Key_.project).get(Project_.id)
 
     query.where(
-      cb.and(cb.equal(projectIdPath, projectId), cb.isNull(root.get(Key_.deletedAt)), cb.or(*predicates)),
+      cb.and(
+        cb.equal(projectIdPath, projectId),
+        cb.isNull(root.get(Key_.deletedAt)),
+        branchPredicate,
+        cb.or(*predicates),
+      ),
     )
 
     return this.entityManager.createQuery(query).resultList
@@ -378,4 +435,10 @@ class ResolvingKeyImporter(
         key to translations.associateBy { it.language.tag }
       }.toMap()
   }
+
+  private data class MergedReferenceData(
+    val key: Key,
+    val screenshotResult: CreateScreenshotResult,
+    val mergedInfo: ScreenshotInfoDto,
+  )
 }

@@ -18,8 +18,15 @@ interface LlmProviderRepository : JpaRepository<LlmProvider, Long> {
   )
   fun getAll(organizationId: Long): List<LlmProvider>
 
+  fun findByIdAndOrganizationId(
+    id: Long,
+    organizationId: Long,
+  ): LlmProvider?
+
   fun deleteByIdAndOrganizationId(
     id: Long,
     organizationId: Long,
   )
+
+  fun existsByOrganizationId(organizationId: Long): Boolean
 }

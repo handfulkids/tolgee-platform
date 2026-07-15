@@ -42,13 +42,15 @@ type Props<T, S> = {
     item: T
   ) => React.ReactNode;
   labelItem: (item: S) => string;
-  label?: string;
+  label?: React.ReactNode;
   error?: React.ReactNode;
   searchPlaceholder?: string;
   displaySearch?: boolean;
   disabled?: boolean;
   minHeight?: boolean;
-  inputComponent?: React.ComponentType<InputBaseComponentProps>;
+  inputComponent?: React.ComponentType<
+    React.PropsWithChildren<InputBaseComponentProps>
+  >;
   menuAnchorOrigin?: {
     vertical: 'top' | 'bottom';
     horizontal: 'left' | 'right';
@@ -79,8 +81,8 @@ export function InfiniteSearchSelect<T, S>({
 
   const renderOption =
     renderItem ??
-    ((_, item: T) => {
-      return itemKey(item);
+    ((_, item: T): React.ReactNode => {
+      return String(itemKey(item));
     });
 
   const totalItems = queryResult?.data?.pages[0]?.page?.totalElements;
@@ -120,12 +122,12 @@ export function InfiniteSearchSelect<T, S>({
         minHeight={minHeight}
         InputProps={{
           placeholder: searchPlaceholder,
-          onClick: () => setOpen(true),
+          onClick: disabled ? undefined : () => setOpen(true),
           disabled: disabled,
           ref: anchorEl,
           fullWidth: true,
           sx: {
-            cursor: 'pointer',
+            cursor: disabled ? 'not-allowed' : 'pointer',
           },
           readOnly: true,
           inputComponent: inputComponent || FakeInput,

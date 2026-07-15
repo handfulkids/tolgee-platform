@@ -49,6 +49,9 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
           TOLGEE_API_KEY: ${{secrets.TOLGEE_API_KEY}}
           TOLGEE_API_URL: ${{secrets.TOLGEE_API_URL}}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
 
       - name: Login to docker
         if: ${{ steps.version.outputs.VERSION != '' }}
@@ -64,8 +67,6 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
           TOLGEE_API_KEY: ${{secrets.TOLGEE_API_KEY}}
           TOLGEE_API_URL: ${{secrets.TOLGEE_API_URL}}
-          DOCKER_CACHE_FROM: type=registry,ref=tolgee/tolgee:latest
-          DOCKER_CACHE_TO: type=inline
 
       - name: Pack with webapp
         if: ${{ steps.version.outputs.VERSION != '' }}
@@ -110,4 +111,4 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.TOLGEE_MACHINE_PAT }}" \
             https://api.github.com/repos/tolgee/billing/actions/workflows/test.yml/dispatches \
-            -d '{"ref":"main","inputs":{"releaseVersion":"${{ steps.version.outputs.VERSION }}"}}'
+            -d '{"ref":"main","inputs":{"release-version":"${{ steps.version.outputs.VERSION }}"}}'

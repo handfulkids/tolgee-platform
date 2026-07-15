@@ -65,7 +65,7 @@ type Props = {
   initialTab: TabsType;
 };
 
-export const KeyEditModal: React.FC<Props> = ({
+export const KeyEditModal: React.FC<React.PropsWithChildren<Props>> = ({
   onClose,
   initialTab,
   data,
@@ -125,6 +125,7 @@ export const KeyEditModal: React.FC<Props> = ({
       extractedArgName ||
       'value',
     custom: JSON.stringify(customValues ?? {}, null, 2),
+    maxCharLimit: keyInfoLoadable.data?.maxCharLimit ?? undefined,
   } satisfies KeyFormType;
 
   return (
@@ -147,6 +148,8 @@ export const KeyEditModal: React.FC<Props> = ({
                   isPlural: values.isPlural,
                   pluralArgName: values.pluralParameter,
                   custom,
+                  maxCharLimit:
+                    values.maxCharLimit != null ? values.maxCharLimit : 0,
                   warnOnDataLoss: !warningOpen,
                 },
               },
@@ -181,6 +184,7 @@ export const KeyEditModal: React.FC<Props> = ({
               keyTags: data.tags,
               keyIsPlural: data.isPlural,
               keyPluralArgName: data.pluralArgName,
+              keyMaxCharLimit: values.maxCharLimit ?? undefined,
             },
           });
         } catch (e) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Direction, Edit, EditorProps } from '../types';
 import {
   generateCurrentValue,
@@ -7,7 +8,6 @@ import {
 } from './utils';
 import { useTranslationsService } from './useTranslationsService';
 import { useRefsService } from './useRefsService';
-import { useDebounce } from 'use-debounce';
 import { components } from 'tg.service/apiSchema.generated';
 import { getTolgeeFormat } from '@tginternal/editor';
 import { useProject } from 'tg.hooks/useProject';
@@ -44,24 +44,6 @@ export function usePositionService({ translations, viewRefs }: Props) {
       updateReactListSizes(viewRefs.reactList, currentIndex);
     }
   }, [position, currentIndex]);
-
-  const [debouncedPosition] = useDebounce(position, 100, { maxWait: 100 });
-
-  useEffect(() => {
-    if (!debouncedPosition) {
-      return;
-    }
-    const newValue = serializeVariants(debouncedPosition.value.variants);
-
-    const isChanged = newValue !== originalValue;
-
-    if (isChanged !== debouncedPosition.changed) {
-      setPosition(() => ({
-        ...debouncedPosition,
-        changed: isChanged,
-      }));
-    }
-  }, [debouncedPosition]);
 
   useEffect(() => {
     // field is also focused, which breaks the scrolling
@@ -122,9 +104,21 @@ export function usePositionService({ translations, viewRefs }: Props) {
     );
   }, [key, position?.language, Boolean(position?.value.parameter)]);
 
+  useEffect(() => {
+    if (!position) return;
+
+    setPosition((p) => {
+      if (!p) return p;
+      const currentChanged =
+        serializeVariants(p.value.variants) !== originalValue;
+      if (currentChanged === p.changed) return p;
+      return { ...p, changed: currentChanged };
+    });
+  }, [position, originalValue]);
+
   const setPositionAndFocus = (pos: EditorProps | undefined) => {
     if (!pos) {
-      clearPosition();
+      flushSync(() => clearPosition());
     } else {
       const key = translations.fixedTranslations?.find(
         (key) => key.keyId === pos.keyId

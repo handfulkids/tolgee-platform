@@ -18,6 +18,8 @@ import java.util.Optional
 @Repository
 @Lazy
 interface KeyRepository : JpaRepository<Key, Long> {
+  fun countByProjectId(projectId: Long): Long
+
   @Query(
     value = """
       select count(k.id) from key k
@@ -117,7 +119,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, k.branch.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, k.branch.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns
@@ -220,12 +222,14 @@ interface KeyRepository : JpaRepository<Key, Long> {
           )
           and ((:trashed = true and k.deleted_at is not null) or (:trashed = false and k.deleted_at is null))
        order by
+       case when lower(f_unaccent(k.name)) = searchUnaccent then 1 else 0 end desc,
+       case when lower(f_unaccent(k.name)) like searchUnaccent || '%' then 1 else 0 end desc,
        (
-       3 * (ns.name <-> searchUnaccent) +
-       3 * (k.name <-> searchUnaccent) +
-       (t.text <-> searchUnaccent) +
-       (bt.text <-> searchUnaccent)
-       ) desc, k.id
+       4 * coalesce(lower(f_unaccent(k.name)) <-> searchUnaccent, 1) +
+       2 * coalesce(lower(f_unaccent(ns.name)) <-> searchUnaccent, 1) +
+       coalesce(lower(f_unaccent(t.text)) <-> searchUnaccent, 1) +
+       coalesce(lower(f_unaccent(bt.text)) <-> searchUnaccent, 1)
+       ) asc, k.id
     limit :#{#pageable.pageSize}
     offset :#{#pageable.offset}
   """,
@@ -263,7 +267,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, b.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, b.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns
@@ -288,7 +292,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns
@@ -397,7 +401,7 @@ interface KeyRepository : JpaRepository<Key, Long> {
 
   @Query(
     """
-     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name)
+     select new io.tolgee.dtos.queryResults.KeyView(k.id, k.name, ns.name, km.description, km.custom, br.name, k.maxCharLimit)
      from Key k
      left join k.keyMeta km
      left join k.namespace ns

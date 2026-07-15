@@ -22,8 +22,8 @@ We don't collect any other data. Please leave telemetry enabled to help us impro
 )
 class TelemetryProperties {
   @DocProperty(description = "Whether telemetry is enabled")
-  var enabled: Boolean = true
+  var enabled: Boolean = false
 
   @DocProperty(hidden = true)
-  var server: String = "https://app.tolgee.io"
+  var server: String = ""
 }

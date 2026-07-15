@@ -108,6 +108,13 @@ export const activityEntities: Record<EntityEnum, EntityOptions> = {
           return <T keyName="activity_entity_key.namespace" params={params} />;
         },
       },
+      maxCharLimit: {
+        label(params) {
+          return (
+            <T keyName="activity_entity_key.max_char_limit" params={params} />
+          );
+        },
+      },
     },
     references: ({
       modifications,
@@ -528,6 +535,25 @@ export const activityEntities: Record<EntityEnum, EntityOptions> = {
     references: ({ relations }) => {
       const result: Reference[] = [];
       const keyRef = getKeyWithLanguages(relations);
+      if (keyRef) {
+        result.push(keyRef);
+      }
+      return result;
+    },
+  },
+  TranslationQaIssue: {
+    label(params) {
+      return <T keyName="activity_entity_qa_issue" params={params} />;
+    },
+    fields: {
+      state: {
+        type: 'qa_issue_state',
+      },
+    },
+    references: ({ relations }) => {
+      const result: Reference[] = [];
+      const translationRelations = relations?.translation?.relations;
+      const keyRef = getKeyWithLanguages(translationRelations);
       if (keyRef) {
         result.push(keyRef);
       }

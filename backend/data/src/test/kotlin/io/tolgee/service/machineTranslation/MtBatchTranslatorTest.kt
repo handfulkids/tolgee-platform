@@ -25,8 +25,6 @@ import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.notNull
 import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationContext
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
 import kotlin.reflect.KClass
 
 class MtBatchTranslatorTest {
@@ -97,6 +95,52 @@ class MtBatchTranslatorTest {
     translated.actualPrice.assert.isEqualTo(100)
   }
 
+  @Test
+  fun `falls back to base plural arg name when key has none (gh-3772)`() {
+    prepareKeyWithBaseArgNameOnly()
+    prepareRawPluralResponse()
+
+    val translated = translateSingle(MtServiceType.PROMPT)
+
+    translated.translatedText.assert.isEqualTo(
+      "{count, plural,\n" +
+        "one {Jeden pes}\n" +
+        "other {'#' psů}\n" +
+        "}",
+    )
+  }
+
+  @Test
+  fun `forces configured key plural arg name even when base differs (gh-3772)`() {
+    prepareKeyWithMismatchedArgName()
+    prepareRawPluralResponse()
+
+    val translated = translateSingle(MtServiceType.PROMPT)
+
+    translated.translatedText.assert.isEqualTo(
+      "{count, plural,\n" +
+        "one {Jeden pes}\n" +
+        "other {'#' psů}\n" +
+        "}",
+    )
+  }
+
+  private fun translateSingle(service: MtServiceType): MtTranslatorResult {
+    val context = getMtTranslatorContext()
+    val translator = MtBatchTranslator(context)
+    return translator
+      .translate(
+        listOf(
+          MtBatchItemParams(
+            keyId = 1,
+            baseTranslationText = preparedKey.baseTranslation,
+            targetLanguageId = 1,
+            service = service,
+          ),
+        ),
+      ).first()
+  }
+
   private fun prepareValidKey() {
     preparedKey =
       KeyForMt(
@@ -106,6 +150,43 @@ class MtBatchTranslatorTest {
         description = "test",
         baseTranslation = "{value, plural, one {# dog} other {# dogs}}",
         isPlural = true,
+      )
+  }
+
+  private fun prepareKeyWithBaseArgNameOnly() {
+    preparedKey =
+      KeyForMt(
+        id = 1,
+        name = "key",
+        namespace = "test",
+        description = "test",
+        baseTranslation = "{count, plural, one {# dog} other {# dogs}}",
+        isPlural = true,
+        pluralArgName = null,
+      )
+  }
+
+  private fun prepareKeyWithMismatchedArgName() {
+    preparedKey =
+      KeyForMt(
+        id = 1,
+        name = "key",
+        namespace = "test",
+        description = "test",
+        baseTranslation = "{value, plural, one {# dog} other {# dogs}}",
+        isPlural = true,
+        pluralArgName = "count",
+      )
+  }
+
+  private fun prepareRawPluralResponse() {
+    mtServiceManagerResults =
+      listOf(
+        TranslateResult(
+          translatedText = "{value, plural, one {Jeden pes} other {# psů}}",
+          actualPrice = 100,
+          usedService = MtServiceType.PROMPT,
+        ),
       )
   }
 
@@ -181,15 +262,17 @@ class MtBatchTranslatorTest {
     val translationMemoryServiceMock = TranslationMemoryService::class.mockIntoAppContext(appContextMock)
 
     doAnswer {
-      Page.empty<TranslationMemoryItemView>()
+      emptyList<TranslationMemoryItemView>()
     }.whenever(
       translationMemoryServiceMock,
-    ).getSuggestions(
+    ).getSuggestionsList(
       any<String>(),
       any<Boolean>(),
       notNull(),
-      any<LanguageDto>(),
-      any<Pageable>(),
+      any<Long>(),
+      any<Long>(),
+      any<String>(),
+      any<Int>(),
     )
 
     val bigMetaServiceMock = BigMetaService::class.mockIntoAppContext(appContextMock)

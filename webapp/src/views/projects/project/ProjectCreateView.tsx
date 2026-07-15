@@ -22,7 +22,9 @@ import { useGlobalActions } from 'tg.globalContext/GlobalContext';
 export type CreateProjectValueType =
   components['schemas']['CreateProjectRequest'];
 
-export const ProjectCreateView: FunctionComponent = () => {
+export const ProjectCreateView: FunctionComponent<
+  React.PropsWithChildren<unknown>
+> = () => {
   const history = useHistory();
   const { quickStartCompleteStep } = useGlobalActions();
   const createProjectLoadable = useApiMutation({
@@ -36,6 +38,7 @@ export const ProjectCreateView: FunctionComponent = () => {
     usePreferredOrganization();
 
   const onSubmit = (values: CreateProjectValueType) => {
+    values.name = values.name.trim();
     values.languages = values.languages.filter((l) => !!l);
     createProjectLoadable.mutate(
       {

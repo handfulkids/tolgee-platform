@@ -162,8 +162,8 @@ class AutoTranslatingTest : MachineTranslationTest() {
       keyName = "jaj",
       translations =
         mapOf(
-          "en" to "Hello2",
-          "de" to "Hallo2",
+          "en" to "Goodbye",
+          "de" to "Auf Wiedersehen",
         ),
     )
     waitForSpanishTranslationSet("jaj")
@@ -246,6 +246,32 @@ class AutoTranslatingTest : MachineTranslationTest() {
         isArray.hasSize(3)
         node("[0].usingTranslationMemory").isEqualTo(false)
         node("[0].usingMachineTranslation").isEqualTo(false)
+      }
+    }
+  }
+
+  @ProjectJWTAuthTestMethod
+  @Test
+  fun `auto translates even when result exceeds char limit`() {
+    saveTestData()
+    performProjectAuthPut(
+      "translations",
+      SetTranslationsWithKeyDto(
+        key = testData.keyWithCharLimit.name,
+        translations = mapOf("en" to "Hello"),
+      ),
+    ).andIsOk
+
+    waitForNotThrowing {
+      executeInNewTransaction {
+        val deTranslation =
+          keyService
+            .get(testData.project.id, testData.keyWithCharLimit.name, null)
+            .translations
+            .find { it.language == testData.germanLanguage }
+
+        assertThat(deTranslation).isNotNull
+        assertThat(deTranslation!!.text).isEqualTo(TRANSLATED_WITH_GOOGLE_RESPONSE)
       }
     }
   }

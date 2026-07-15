@@ -41,6 +41,7 @@ import io.tolgee.service.security.ApiKeyService
 import io.tolgee.service.security.PermissionService
 import io.tolgee.service.security.SecurityService
 import io.tolgee.service.translation.TranslationService
+import io.tolgee.service.translationMemory.TranslationMemoryManagementService
 import io.tolgee.util.Logging
 import io.tolgee.util.SlugGenerator
 import jakarta.persistence.EntityManager
@@ -55,6 +56,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.InputStream
+import java.io.Serializable
 
 @Transactional
 @Service
@@ -112,7 +114,11 @@ class ProjectService(
   @set:Lazy
   lateinit var aiPlaygroundResultService: AiPlaygroundResultService
 
-  @Transactional
+  @set:Autowired
+  @set:Lazy
+  lateinit var translationMemoryManagementService: TranslationMemoryManagementService
+
+  @Transactional(readOnly = true)
   @Cacheable(cacheNames = [Caches.PROJECTS], key = "#id")
   fun findDto(id: Long): ProjectDto? {
     return projectRepository.find(id)?.let {
@@ -120,29 +126,33 @@ class ProjectService(
     }
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   @Cacheable(cacheNames = [Caches.PROJECTS], key = "#id")
   fun getDto(id: Long): ProjectDto {
     return findDto(id) ?: throw ProjectNotFoundException(id)
   }
 
+  @Transactional(readOnly = true)
   fun get(id: Long): Project {
     return find(id) ?: throw ProjectNotFoundException(id)
   }
 
+  @Transactional(readOnly = true)
   fun find(id: Long): Project? {
     return projectRepository.find(id)
   }
 
+  @Transactional(readOnly = true)
   fun findAll(ids: Iterable<Long>): List<Project> {
     return projectRepository.findAllById(ids)
   }
 
+  @Transactional(readOnly = true)
   fun findDeleted(id: Long): Project? {
     return projectRepository.findDeleted(id)
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   fun getView(id: Long): ProjectWithLanguagesView {
     val perms = permissionService.getProjectPermissionData(id, authenticationFacade.authenticatedUser.id)
     val withoutPermittedLanguages =
@@ -165,6 +175,8 @@ class ProjectService(
         .findById(id)
         .orElseThrow { NotFoundException() }!!
     val wasBranchingEnabled = project.useBranching
+    val oldBaseLanguageId = project.baseLanguage?.id
+    val oldName = project.name
 
     if (!dto.useNamespaces && project.namespaces.isNotEmpty()) {
       throw ValidationException(Message.NAMESPACES_CANNOT_BE_DISABLED_WHEN_NAMESPACE_EXISTS)
@@ -183,7 +195,7 @@ class ProjectService(
     }
 
     if (dto.defaultNamespaceId != null) {
-      var namespace =
+      val namespace =
         project.namespaces.find { it.id == dto.defaultNamespaceId }
           ?: throw BadRequestException(Message.NAMESPACE_NOT_FROM_PROJECT)
       project.defaultNamespace = namespace
@@ -195,6 +207,9 @@ class ProjectService(
       val language =
         project.languages.find { it.id == dto.baseLanguageId }
           ?: throw BadRequestException(Message.LANGUAGE_NOT_FROM_PROJECT)
+      if (language.id != oldBaseLanguageId) {
+        resolveSharedTmConflicts(project.id, language.tag, dto.unassignConflictingTms == true)
+      }
       project.baseLanguage = language
       languageService.evictCacheForProject(project.id)
     }
@@ -205,7 +220,7 @@ class ProjectService(
       project.slug = newSlug
     }
 
-    // if project has null slag, generate it
+    // if a project has null slug, generate it
     if (project.slug == null) {
       project.slug = generateSlug(project.name, null)
     }
@@ -215,9 +230,60 @@ class ProjectService(
     if (!wasBranchingEnabled && dto.useBranching) {
       branchService.enableBranchingOnProject(project.id)
     }
+
+    val newBaseLanguageId = project.baseLanguage?.id
+    if (newBaseLanguageId != null && newBaseLanguageId != oldBaseLanguageId) {
+      // Project TM content is virtual (computed from translations at read time), so no rebuild
+      // is needed — only the TM's sourceLanguageTag needs to track the project's base language.
+      translationMemoryManagementService.updateProjectTmSourceLanguage(project.id)
+    }
+    if (project.name != oldName) {
+      translationMemoryManagementService.renameProjectTm(project.id, project.name)
+    }
     return project
   }
 
+  /**
+   * Shared TMs declare a source language; changing the project base to a different language
+   * would leave them misaligned. Without [unassignConflictingTms] this rejects the change and
+   * echoes the offending TMs back so the UI can render a confirmation dialog. With the flag —
+   * which the frontend only sets after the user explicitly confirms in that dialog — the
+   * conflicting assignments are detached in the same transaction as the base-language change.
+   *
+   * No feature gate on the unassign side on purpose: a project whose org has lost the TM
+   * feature can still carry leftover shared-TM assignments, and must be able to rescue itself
+   * via a base-language change. `PROJECT_EDIT` is sufficient authorisation.
+   */
+  private fun resolveSharedTmConflicts(
+    projectId: Long,
+    newBaseLanguageTag: String,
+    unassignConflictingTms: Boolean,
+  ) {
+    val conflicts =
+      translationMemoryManagementService
+        .getSharedTmAssignmentsForProject(projectId)
+        .filter { it.translationMemory.sourceLanguageTag != newBaseLanguageTag }
+    if (conflicts.isEmpty()) return
+    if (!unassignConflictingTms) {
+      val payload: List<Serializable> =
+        conflicts.map {
+          hashMapOf<String, Any>(
+            "id" to it.translationMemory.id,
+            "name" to it.translationMemory.name,
+          )
+        }
+      throw BadRequestException(
+        Message.CANNOT_CHANGE_PROJECT_BASE_LANGUAGE_TM_CONFLICT,
+        payload,
+      )
+    }
+    translationMemoryManagementService.unassignSharedTmsByProject(
+      projectId = projectId,
+      translationMemoryIds = conflicts.map { it.translationMemory.id },
+    )
+  }
+
+  @Transactional(readOnly = true)
   fun findAllPermitted(userAccount: UserAccount): List<ProjectDTO> {
     return projectRepository
       .findAllPermitted(userAccount.id)
@@ -239,8 +305,45 @@ class ProjectService(
       }.toList()
   }
 
+  @Transactional(readOnly = true)
   fun findAllInOrganization(organizationId: Long): List<Project> {
     return this.projectRepository.findAllByOrganizationOwnerId(organizationId)
+  }
+
+  @Transactional(readOnly = true)
+  fun findAllActiveInOrganization(organizationId: Long): List<Project> {
+    return projectRepository.findAllByOrganizationOwnerIdAndDeletedAtIsNull(organizationId)
+  }
+
+  @Transactional
+  @CacheEvict(cacheNames = [Caches.PROJECTS], allEntries = true)
+  fun softDeleteAllInOrganization(organizationId: Long) {
+    findAllActiveInOrganization(organizationId).forEach { softDeleteProject(it) }
+  }
+
+  @Transactional(readOnly = true)
+  fun findIdsInDeletedOrganizations(pageable: Pageable): Page<Long> {
+    return projectRepository.findIdsInDeletedOrganizations(pageable)
+  }
+
+  @Transactional(readOnly = true)
+  fun findIncludingDeleted(id: Long): Project? {
+    return projectRepository.findById(id).orElse(null)
+  }
+
+  @Transactional(readOnly = true)
+  fun findAllActive(): List<Project> {
+    return projectRepository.findAllByDeletedAtIsNull()
+  }
+
+  @Transactional(readOnly = true)
+  fun findAllWithQaEnabledInOrganization(organizationId: Long): List<Project> {
+    return projectRepository.findAllByOrganizationOwnerIdAndUseQaChecksTrueAndDeletedAtIsNull(organizationId)
+  }
+
+  @Transactional(readOnly = true)
+  fun findAllWithQaEnabled(): List<Project> {
+    return projectRepository.findAllByUseQaChecksTrueAndDeletedAtIsNull()
   }
 
   private fun addPermittedLanguagesToProjects(
@@ -264,15 +367,19 @@ class ProjectService(
   @CacheEvict(cacheNames = [Caches.PROJECTS], key = "#id")
   fun deleteProject(id: Long) {
     val project = get(id)
-    val languages = project.languages
+    softDeleteProject(project)
+    applicationContext.publishEvent(OnProjectSoftDeleted(project))
+  }
+
+  private fun softDeleteProject(project: Project) {
     val currentDate = currentDateProvider.date
+    val languages = project.languages
     languages.forEach {
       it.deletedAt = currentDate
     }
     languageService.saveAll(languages)
     project.deletedAt = currentDate
     save(project)
-    applicationContext.publishEvent(OnProjectSoftDeleted(project))
   }
 
   /**
@@ -306,10 +413,12 @@ class ProjectService(
     avatarService.setAvatar(project, avatar)
   }
 
+  @Transactional(readOnly = true)
   fun validateSlugUniqueness(slug: String): Boolean {
     return projectRepository.countAllBySlug(slug) < 1
   }
 
+  @Transactional(readOnly = true)
   fun generateSlug(
     name: String,
     oldSlug: String? = null,
@@ -322,6 +431,7 @@ class ProjectService(
     }
   }
 
+  @Transactional(readOnly = true)
   fun findPermittedInOrganizationPaged(
     pageable: Pageable,
     search: String?,
@@ -337,6 +447,7 @@ class ProjectService(
     )
   }
 
+  @Transactional(readOnly = true)
   fun findPermittedInOrganizationPaged(
     pageable: Pageable,
     search: String?,
@@ -369,6 +480,7 @@ class ProjectService(
     return project
   }
 
+  @Transactional(readOnly = true)
   fun refresh(project: Project): Project {
     if (project.id == 0L) {
       return project
@@ -387,6 +499,7 @@ class ProjectService(
     save(project)
   }
 
+  @Transactional(readOnly = true)
   fun findAllByNameAndOrganizationOwner(
     name: String,
     organization: Organization,
@@ -394,6 +507,7 @@ class ProjectService(
     return projectRepository.findAllByNameAndOrganizationOwner(name, organization)
   }
 
+  @Transactional(readOnly = true)
   fun getProjectsWithDirectPermissions(
     id: Long,
     userIds: List<Long>,

@@ -101,7 +101,7 @@ class BatchJobService(
         this.target = target
         this.totalItems = target.size
         this.chunkSize = processor.getChunkSize(projectId = project?.id, request = request)
-        this.jobCharacter = processor.getJobCharacter()
+        this.jobCharacter = processor.getJobCharacter(request = request, projectId = project?.id)
         this.maxPerJobConcurrency = processor.getMaxPerJobConcurrency()
         this.type = type
         this.hidden = isHidden
@@ -225,6 +225,16 @@ class BatchJobService(
     return this.findJobDto(id) ?: throw NotFoundException(Message.BATCH_JOB_NOT_FOUND)
   }
 
+  fun getJobDto(
+    projectId: Long,
+    id: Long,
+  ): BatchJobDto {
+    val job =
+      batchJobRepository.findByIdAndProjectId(id, projectId)
+        ?: throw NotFoundException(Message.BATCH_JOB_NOT_FOUND)
+    return BatchJobDto.fromEntity(job)
+  }
+
   /**
    * Gets job DTO directly from database, bypassing the cache.
    * Use this when you need to read the most recent committed state,
@@ -315,6 +325,16 @@ class BatchJobService(
     return getView(job)
   }
 
+  fun getView(
+    projectId: Long,
+    jobId: Long,
+  ): BatchJobView {
+    val job =
+      batchJobRepository.findByIdAndProjectId(jobId, projectId)
+        ?: throw NotFoundException(Message.BATCH_JOB_NOT_FOUND)
+    return getView(job)
+  }
+
   fun getView(job: BatchJob): BatchJobView {
     val progress = getProgresses(listOf(job))[job.id] ?: 0
     val errorMessage = getErrorMessages(listOf(job))[job.id]
@@ -340,55 +360,68 @@ class BatchJobService(
   fun getProcessor(type: BatchJobType): ChunkProcessor<Any, Any, Any> =
     applicationContext.getBean(type.processor.java) as ChunkProcessor<Any, Any, Any>
 
+  @Transactional
   fun deleteAllByProjectId(projectId: Long) {
-    val batchJobs = getAllByProjectId(projectId)
-    val batchJobIds = batchJobs.map { it.id }
-    val executions = findAllExecutionsByBatchJobIdIn(batchJobIds)
-    val executionIds = executions.map { it.id }
-    setActivityRevisionFieldsToNull(batchJobIds, executionIds)
-    deleteExecutions(executions)
-    batchJobRepository.deleteAll(batchJobs)
-  }
+    // Use bulk JPQL queries with project.id to avoid loading millions of entities into memory
+    // and to avoid Hibernate 6.6's CHECK_ON_FLUSH validation issues
 
-  private fun deleteExecutions(executions: List<BatchJobChunkExecution>) {
+    // Clear ActivityRevision references to batch jobs and executions for this project
     entityManager
       .createQuery(
         """
-        delete from BatchJobChunkExecution e where e.id in :executionIds
+        UPDATE ActivityRevision ar SET ar.batchJob = null
+        WHERE ar.batchJob.project.id = :projectId
         """.trimIndent(),
-      ).setParameter("executionIds", executions.map { it.id })
+      ).setParameter("projectId", projectId)
       .executeUpdate()
-  }
 
-  private fun setActivityRevisionFieldsToNull(
-    batchJobIds: List<Long>,
-    executionIds: List<Long>,
-  ) {
     entityManager
       .createQuery(
         """
-        update ActivityRevision ar set ar.batchJob = null, ar.batchJobChunkExecution = null
-        where ar.batchJob.id in :batchJobIds or ar.batchJobChunkExecution.id in :executionIds
+        UPDATE ActivityRevision ar SET ar.batchJobChunkExecution = null
+        WHERE ar.batchJobChunkExecution.batchJob.project.id = :projectId
         """.trimIndent(),
-      ).setParameter("batchJobIds", batchJobIds)
-      .setParameter("executionIds", executionIds)
+      ).setParameter("projectId", projectId)
       .executeUpdate()
-  }
 
-  private fun findAllExecutionsByBatchJobIdIn(jobIds: List<Long>): List<BatchJobChunkExecution> {
-    return entityManager
+    // Delete executions for batch jobs in this project
+    entityManager
       .createQuery(
         """
-        from BatchJobChunkExecution e
-        where e.batchJob.id in :jobIds
+        DELETE FROM BatchJobChunkExecution e WHERE e.batchJob.project.id = :projectId
         """.trimIndent(),
-        BatchJobChunkExecution::class.java,
-      ).setParameter("jobIds", jobIds)
-      .resultList
+      ).setParameter("projectId", projectId)
+      .executeUpdate()
+
+    // Delete batch jobs for this project
+    entityManager
+      .createQuery("DELETE FROM BatchJob b WHERE b.project.id = :projectId")
+      .setParameter("projectId", projectId)
+      .executeUpdate()
   }
 
   fun getAllByProjectId(projectId: Long): List<BatchJob> {
     return batchJobRepository.findAllByProjectId(projectId)
+  }
+
+  fun hasActiveJobForProject(
+    projectId: Long,
+    type: BatchJobType,
+  ): Boolean {
+    return entityManager
+      .createQuery(
+        """
+        select count(j) > 0 from BatchJob j
+        where j.project.id = :projectId
+          and j.type = :type
+          and j.status not in :completedStatuses
+        """.trimIndent(),
+        java.lang.Boolean::class.java,
+      ).setParameter("projectId", projectId)
+      .setParameter("type", type)
+      .setParameter("completedStatuses", BatchJobStatus.entries.filter { it.completed })
+      .singleResult
+      .booleanValue()
   }
 
   fun getExecutions(batchJobId: Long): List<BatchJobChunkExecution> {
@@ -432,6 +465,21 @@ class BatchJobService(
     lockedJobIds: Iterable<Long>,
     before: Date,
   ): List<BatchJob> = batchJobRepository.getCompletedJobs(lockedJobIds, before)
+
+  fun findExistingJobIds(jobIds: Iterable<Long>): Set<Long> {
+    val idList = jobIds.toList()
+    if (idList.isEmpty()) return emptySet()
+    @Suppress("UNCHECKED_CAST")
+    return entityManager
+      .createNativeQuery(
+        """
+        SELECT id FROM tolgee_batch_job WHERE id IN :ids
+        """,
+      ).setParameter("ids", idList)
+      .resultList
+      .map { (it as Number).toLong() }
+      .toSet()
+  }
 
   fun getStuckJobIds(jobIds: MutableSet<Long>): List<Long> {
     return batchJobRepository.getStuckJobIds(jobIds, currentDateProvider.date.addMinutes(-2))

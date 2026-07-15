@@ -12,10 +12,12 @@ import {
 } from './SubfilterNamespaces';
 import { SubfilterTranslations } from './SubfilterTranslations';
 import { SubfilterScreenshots } from './SubfilterScreenshots';
+import { SubfilterDescription } from './SubfilterDescription';
 import { SubfilterComments } from './SubfilterComments';
 import { SubfilterLabels } from 'tg.views/projects/translations/TranslationFilters/SubfilterLabels';
 import { SubfilterSuggestions } from './SubfilterSuggestions';
 import { SubfilterDeletedBy } from './SubfilterDeletedBy';
+import { getQaChecksFiltersLength, SubfilterQaChecks } from 'tg.ee';
 
 type Props = {
   value: FiltersType;
@@ -66,6 +68,11 @@ export const TranslationFiltersPopup = ({
           actions={actions}
           projectId={projectId}
         />
+        <SubfilterDescription
+          value={value}
+          actions={actions}
+          projectId={projectId}
+        />
         {!filterOptions?.keyRelatedOnly && (
           <>
             <SubfilterTranslations
@@ -85,6 +92,14 @@ export const TranslationFiltersPopup = ({
               actions={actions}
               projectId={projectId}
             />
+            {(project.useQaChecks ||
+              Boolean(getQaChecksFiltersLength(value))) && (
+              <SubfilterQaChecks
+                value={value}
+                actions={actions}
+                selectedLanguages={selectedLanguages}
+              />
+            )}
           </>
         )}
         {project.suggestionsMode !== 'DISABLED' && (

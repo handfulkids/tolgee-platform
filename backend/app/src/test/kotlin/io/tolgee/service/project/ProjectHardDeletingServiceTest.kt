@@ -12,6 +12,7 @@ import io.tolgee.development.testDataBuilder.data.BaseTestData
 import io.tolgee.development.testDataBuilder.data.BatchJobsTestData
 import io.tolgee.development.testDataBuilder.data.ContentDeliveryConfigTestData
 import io.tolgee.development.testDataBuilder.data.MtSettingsTestData
+import io.tolgee.development.testDataBuilder.data.ProjectWithQaEntitiesTestData
 import io.tolgee.development.testDataBuilder.data.SuggestionsTestData
 import io.tolgee.development.testDataBuilder.data.WebhooksTestData
 import io.tolgee.dtos.BigMetaDto
@@ -21,6 +22,7 @@ import io.tolgee.model.Project
 import io.tolgee.service.bigMeta.BigMetaService
 import io.tolgee.testing.assert
 import io.tolgee.util.executeInNewRepeatableTransaction
+import io.tolgee.util.executeInNewTransaction
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -119,7 +121,7 @@ class ProjectHardDeletingServiceTest : AbstractSpringTest() {
   fun `deletes project with webhooks`() {
     val testData = WebhooksTestData()
     testDataService.saveTestData(testData.root)
-    io.tolgee.util.executeInNewTransaction(platformTransactionManager) {
+    executeInNewTransaction(platformTransactionManager) {
       projectHardDeletingService.hardDeleteProject(testData.projectBuilder.self.refresh())
     }
   }
@@ -128,8 +130,22 @@ class ProjectHardDeletingServiceTest : AbstractSpringTest() {
   fun `deletes project with suggestions`() {
     val testData = SuggestionsTestData()
     testDataService.saveTestData(testData.root)
+    executeInNewTransaction(platformTransactionManager) {
+      projectHardDeletingService.hardDeleteProject(testData.projectBuilder.self.refresh())
+    }
+  }
+
+  @Test
+  fun `deletes project with QA entities`() {
+    val testData = ProjectWithQaEntitiesTestData()
+    testDataService.saveTestData(testData.root)
+
     io.tolgee.util.executeInNewTransaction(platformTransactionManager) {
       projectHardDeletingService.hardDeleteProject(testData.projectBuilder.self.refresh())
+    }
+
+    executeInNewTransaction {
+      projectService.find(testData.projectBuilder.self.id).assert.isNull()
     }
   }
 

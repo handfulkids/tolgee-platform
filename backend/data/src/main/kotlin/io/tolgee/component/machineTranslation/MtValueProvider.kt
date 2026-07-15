@@ -9,6 +9,14 @@ interface MtValueProvider {
 
   val supportedLanguages: Array<String>?
 
+  /**
+   * Tags accepted by the provider as translation **source**. Defaults to [supportedLanguages].
+   *
+   * Override this when a provider rejects some of its target-language tags as sources
+   */
+  val supportedSourceLanguages: Array<String>?
+    get() = supportedLanguages
+
   fun isLanguageSupported(tag: String): Boolean {
     val suitableTag = getSuitableTag(tag) ?: return false
     return supportedLanguages?.contains(suitableTag) ?: true
@@ -33,11 +41,21 @@ interface MtValueProvider {
 
   val formalitySupportingLanguages: Array<String>?
 
+  val supportsContext: Boolean
+    get() = false
+
   fun getSuitableTag(tag: String): String? {
     if (supportedLanguages.isNullOrEmpty()) {
       return tag
     }
     return LanguageTagConvertor.findSuitableTag(supportedLanguages!!, tag)
+  }
+
+  fun getSuitableSourceTag(tag: String): String? {
+    if (supportedSourceLanguages.isNullOrEmpty()) {
+      return tag
+    }
+    return LanguageTagConvertor.findSuitableTag(supportedSourceLanguages!!, tag)
   }
 
   fun getMetadata(

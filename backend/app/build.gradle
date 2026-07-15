@@ -19,6 +19,13 @@ plugins {
     id "org.gradle.test-retry"
 }
 
+sentry {
+    includeSourceContext = true
+    org = System.getenv("SENTRY_ORG")
+    projectName = System.getenv("SENTRY_PROJECT")
+    authToken = System.getenv("SENTRY_AUTH_TOKEN")
+}
+
 group = 'io.tolgee'
 
 if (System.getenv().containsKey("VERSION")) {
@@ -52,10 +59,6 @@ apply plugin: "kotlin-allopen"
 apply plugin: "org.jetbrains.kotlin.plugin.spring"
 apply plugin: "org.gradle.test-retry"
 
-repositories {
-    mavenCentral()
-}
-
 dependencyManagement {
     applyMavenExclusions = false
 }
@@ -66,7 +69,6 @@ allOpen {
     annotation("jakarta.persistence.Embeddable")
     annotation("org.springframework.stereotype.Service")
     annotation("org.springframework.stereotype.Component")
-    annotation("org.springframework.stereotype.Service")
     annotation("org.springframework.transaction.annotation.Transactional")
     annotation("org.springframework.beans.factory.annotation.Configurable")
     annotation("org.springframework.boot.test.context.SpringBootTest")
@@ -159,6 +161,7 @@ dependencies {
      * Google translation API
      */
     implementation platform(libs.googleCloud)
+    implementation platform(libs.grpcBom)
     implementation 'com.google.cloud:google-cloud-translate'
 
     /**
@@ -220,7 +223,7 @@ dependencies {
 
 }
 
-test {
+tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = "4096m"
     testLogging {
@@ -245,6 +248,14 @@ tasks.register('runStandardTests', Test) {
         excludeTags "contextRecreating", "websocket"
     }
     maxHeapSize = "4096m"
+
+    def shardIndex = System.getenv('SHARD_INDEX')
+    def shardTotal = System.getenv('SHARD_TOTAL')
+    if (shardIndex != null && shardTotal != null) {
+        systemProperty 'tolgee.test.shard.index', shardIndex
+        systemProperty 'tolgee.test.shard.total', shardTotal
+    }
+
     rootProject.setTestRetry(it)
 }
 
@@ -286,12 +297,17 @@ sourceSets {
     test.kotlin.srcDirs = ['src/test/kotlin', 'src/test/java']
 }
 
-jar {
+tasks.named('jar', Jar) {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 }
 
-bootJar {
+tasks.named('bootJar', Jar) {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+
+    archiveFileName = "tolgee-${project.version}.jar"
+    manifest {
+        attributes('Implementation-Version': project.version)
+    }
 }
 
 normalization {

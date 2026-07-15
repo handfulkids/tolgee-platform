@@ -156,6 +156,64 @@ class SingleStepImportControllerResolvableTest : ProjectAuthControllerTest("/v2/
 
   @Test
   @ProjectJWTAuthTestMethod
+  fun `it ignores duplicate screenshot references for same key`() {
+    val request =
+      SingleStepImportResolvableRequest(
+        keys =
+          listOf(
+            SingleStepImportResolvableItemRequest(
+              name = "key-1",
+              namespace = "namespace-1",
+              screenshots =
+                listOf(
+                  KeyScreenshotDto(
+                    text = "Oh oh Oh",
+                    uploadedImageId = uploadedImageId,
+                    positions =
+                      listOf(
+                        KeyInScreenshotPositionDto(
+                          x = 100,
+                          y = 150,
+                          width = 80,
+                          height = 100,
+                        ),
+                      ),
+                  ),
+                  KeyScreenshotDto(
+                    text = "Oh oh Oh",
+                    uploadedImageId = uploadedImageId,
+                    positions =
+                      listOf(
+                        KeyInScreenshotPositionDto(
+                          x = 100,
+                          y = 150,
+                          width = 80,
+                          height = 100,
+                        ),
+                      ),
+                  ),
+                ),
+            ),
+          ),
+      )
+
+    performProjectAuthPost(
+      "single-step-import-resolvable",
+      request,
+    ).andIsOk
+
+    executeInNewTransaction {
+      getKey("namespace-1", "key-1")!!.keyScreenshotReferences.assert.hasSize(1)
+      getKey("namespace-1", "key-1")!!
+        .keyScreenshotReferences
+        .first()
+        .positions.assert
+        .hasSize(1)
+    }
+  }
+
+  @Test
+  @ProjectJWTAuthTestMethod
   fun `it imports unreviewed or new translations`() {
     val request =
       SingleStepImportResolvableRequest(
@@ -276,6 +334,39 @@ class SingleStepImportControllerResolvableTest : ProjectAuthControllerTest("/v2/
       val trashedKey = keyService.find(existingKey.id)
       trashedKey.assert.isNotNull
       trashedKey!!.deletedAt.assert.isNotNull
+    }
+  }
+
+  @Test
+  @ProjectJWTAuthTestMethod
+  fun `persists plural arg name when importing a plural translation`() {
+    val request =
+      SingleStepImportResolvableRequest(
+        keys =
+          listOf(
+            SingleStepImportResolvableItemRequest(
+              name = "plural-key",
+              namespace = "namespace-1",
+              translations =
+                mapOf(
+                  "en" to
+                    SingleStepImportResolvableTranslationRequest(
+                      text = "I have {count, plural, one {# dog} other {# dogs}}.",
+                      resolution = ResolvableTranslationResolution.EXPECT_NO_CONFLICT,
+                    ),
+                ),
+            ),
+          ),
+      )
+    performProjectAuthPost(
+      "single-step-import-resolvable",
+      request,
+    ).andIsOk
+
+    executeInNewTransaction {
+      val key = getKey("namespace-1", "plural-key")
+      key!!.isPlural.assert.isTrue()
+      key.pluralArgName.assert.isEqualTo("count")
     }
   }
 

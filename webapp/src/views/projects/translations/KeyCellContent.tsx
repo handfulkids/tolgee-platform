@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 
 import { LimitedHeightText } from 'tg.component/LimitedHeightText';
 import { MarkdownLink } from 'tg.component/common/MarkdownLink';
+import { KeyName } from 'tg.component/KeyName/KeyName';
 
 export const StyledKey = styled('div')`
   grid-area: key;
@@ -28,7 +29,7 @@ type Props = {
   width?: string | number;
 };
 
-export const KeyCellContent: React.FC<Props> = ({
+export const KeyCellContent: React.FC<React.PropsWithChildren<Props>> = ({
   keyName,
   description,
   width,
@@ -37,7 +38,7 @@ export const KeyCellContent: React.FC<Props> = ({
     <>
       <StyledKey data-cy="translations-key-name">
         <LimitedHeightText width={width} maxLines={3} wrap="break-all">
-          {keyName}
+          <KeyName name={keyName} />
         </LimitedHeightText>
       </StyledKey>
       {description && (
