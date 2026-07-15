@@ -18,6 +18,7 @@ import io.tolgee.model.UploadedImage
 import io.tolgee.model.key.Key
 import io.tolgee.model.key.screenshotReference.KeyInScreenshotPosition
 import io.tolgee.model.key.screenshotReference.KeyScreenshotReference
+import io.tolgee.model.key.screenshotReference.KeyScreenshotReferenceId
 import io.tolgee.repository.KeyScreenshotReferenceRepository
 import io.tolgee.repository.ScreenshotRepository
 import io.tolgee.security.authentication.AuthenticationFacade
@@ -88,14 +89,31 @@ class ScreenshotService(
     originalDimension: Dimension?,
     targetDimension: Dimension?,
   ): Screenshot {
+    val referenceId = KeyScreenshotReferenceId(key.id, screenshot.id)
+    val existingReference = entityManager.find(KeyScreenshotReference::class.java, referenceId)
+    if (existingReference != null) {
+      existingReference.replaceInfo(info, originalDimension, targetDimension)
+      return screenshot
+    }
+
     val reference = KeyScreenshotReference()
     reference.key = key
     reference.screenshot = screenshot
     screenshot.keyScreenshotReferences.add(reference)
     key.keyScreenshotReferences.add(reference)
-    reference.setInfo(info, originalDimension, targetDimension)
+    reference.replaceInfo(info, originalDimension, targetDimension)
     entityManager.persist(reference)
     return screenshot
+  }
+
+  private fun KeyScreenshotReference.replaceInfo(
+    info: ScreenshotInfoDto?,
+    originalDimension: Dimension?,
+    newDimension: Dimension?,
+  ) {
+    originalText = null
+    positions = mutableListOf()
+    setInfo(info, originalDimension, newDimension)
   }
 
   private fun KeyScreenshotReference.setInfo(

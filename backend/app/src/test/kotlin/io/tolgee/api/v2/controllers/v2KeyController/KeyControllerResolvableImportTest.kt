@@ -152,6 +152,66 @@ class KeyControllerResolvableImportTest : ProjectAuthControllerTest("/v2/project
 
   @Test
   @ProjectJWTAuthTestMethod
+  fun `it ignores duplicate screenshot references for same key`() {
+    performProjectAuthPost(
+      "keys/import-resolvable",
+      mapOf(
+        "keys" to
+          listOf(
+            mapOf(
+              "name" to "key-1",
+              "namespace" to "namespace-1",
+              "screenshots" to
+                listOf(
+                  mapOf(
+                    "text" to "Oh oh Oh",
+                    "uploadedImageId" to uploadedImageId,
+                    "positions" to
+                      listOf(
+                        mapOf(
+                          "x" to 100,
+                          "y" to 150,
+                          "width" to 80,
+                          "height" to 100,
+                        ),
+                      ),
+                  ),
+                  mapOf(
+                    "text" to "Oh oh Oh",
+                    "uploadedImageId" to uploadedImageId,
+                    "positions" to
+                      listOf(
+                        mapOf(
+                          "x" to 100,
+                          "y" to 150,
+                          "width" to 80,
+                          "height" to 100,
+                        ),
+                      ),
+                  ),
+                ),
+            ),
+          ),
+      ),
+    ).andIsOk
+
+    executeInNewTransaction {
+      val key =
+        projectService
+          .get(testData.projectBuilder.self.id)
+          .keys
+          .find { it.name == "key-1" && it.namespace?.name == "namespace-1" }!!
+
+      key.keyScreenshotReferences.assert.hasSize(1)
+      key.keyScreenshotReferences
+        .first()
+        .positions.assert
+        .hasSize(1)
+    }
+  }
+
+  @Test
+  @ProjectJWTAuthTestMethod
   fun `it imports a lot of data (and set outdated) in time`() {
     val lotOfKeys = testData.addLotOfKeys(5000)
     testDataService.saveTestData(testData.root)

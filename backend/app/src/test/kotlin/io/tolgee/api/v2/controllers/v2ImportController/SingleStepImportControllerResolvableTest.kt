@@ -156,6 +156,64 @@ class SingleStepImportControllerResolvableTest : ProjectAuthControllerTest("/v2/
 
   @Test
   @ProjectJWTAuthTestMethod
+  fun `it ignores duplicate screenshot references for same key`() {
+    val request =
+      SingleStepImportResolvableRequest(
+        keys =
+          listOf(
+            SingleStepImportResolvableItemRequest(
+              name = "key-1",
+              namespace = "namespace-1",
+              screenshots =
+                listOf(
+                  KeyScreenshotDto(
+                    text = "Oh oh Oh",
+                    uploadedImageId = uploadedImageId,
+                    positions =
+                      listOf(
+                        KeyInScreenshotPositionDto(
+                          x = 100,
+                          y = 150,
+                          width = 80,
+                          height = 100,
+                        ),
+                      ),
+                  ),
+                  KeyScreenshotDto(
+                    text = "Oh oh Oh",
+                    uploadedImageId = uploadedImageId,
+                    positions =
+                      listOf(
+                        KeyInScreenshotPositionDto(
+                          x = 100,
+                          y = 150,
+                          width = 80,
+                          height = 100,
+                        ),
+                      ),
+                  ),
+                ),
+            ),
+          ),
+      )
+
+    performProjectAuthPost(
+      "single-step-import-resolvable",
+      request,
+    ).andIsOk
+
+    executeInNewTransaction {
+      getKey("namespace-1", "key-1")!!.keyScreenshotReferences.assert.hasSize(1)
+      getKey("namespace-1", "key-1")!!
+        .keyScreenshotReferences
+        .first()
+        .positions.assert
+        .hasSize(1)
+    }
+  }
+
+  @Test
+  @ProjectJWTAuthTestMethod
   fun `it imports unreviewed or new translations`() {
     val request =
       SingleStepImportResolvableRequest(
