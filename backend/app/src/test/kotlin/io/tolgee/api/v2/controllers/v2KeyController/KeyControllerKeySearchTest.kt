@@ -158,4 +158,36 @@ class KeyControllerKeySearchTest :
       node("_embedded").isAbsent()
     }
   }
+
+  @Test
+  @ProjectJWTAuthTestMethod
+  fun `it prioritizes exact key name matches when requested translation is missing`() {
+    repeat(25) {
+      testData.run {
+        projectBuilder.addKeyWithTranslations(
+          "resource development candidate $it",
+          null,
+          "base translation $it",
+        )
+      }
+    }
+
+    testData.run {
+      projectBuilder.addKeyWithTranslations(
+        "Resource Development",
+        null,
+        "base translation exact",
+      )
+    }
+
+    saveAndPrepare()
+
+    performProjectAuthGet("keys/search?search=Resource%20Development&languageTag=ko&size=20").andAssertThatJson {
+      node("_embedded.keys") {
+        isArray.hasSize(20)
+        node("[0].name").isEqualTo("Resource Development")
+      }
+      node("page.totalElements").isEqualTo(26)
+    }
+  }
 }
